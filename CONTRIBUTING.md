@@ -92,6 +92,14 @@ Match what's already there rather than importing your own conventions.
 - **Defaults live in the CONFIG block** at the top of [`app/config.js`](app/config.js). Don't scatter new constants through the app.
 - **Keep it working offline.** Local-first is the whole point — a change that requires an internet connection to chat will not be merged.
 
+### Adding an option to the model request
+
+Two things to know before you add a field to the body sent to the model.
+
+**Published sites need the same field allowlisted.** [`api/proxy.js`](api/proxy.js) rebuilds the upstream request from named fields rather than forwarding what the browser sent, because that endpoint is public and unauthenticated. So a new option needs adding in **two** places — the payload in `sendMessage` ([`app/thinking.js`](app/thinking.js)) and `buildPayload` in the proxy — or it will work locally and silently vanish on every published site, which is a confusing afternoon to debug.
+
+**Ollama-only fields must stay behind the Ollama check.** Ollama ignores request fields it doesn't recognise; hosted providers answer `400 Bad Request` for them. Anything outside the OpenAI chat-completions spec — `chat_template_kwargs`, Qwen's `/think` and `/no_think` — goes inside `applyThinkingSwitch`'s `isOllamaEndpoint` guard. Sending one to a cloud endpoint breaks every message to it, not just the feature you added.
+
 ### Copy and language
 
 User-facing text should read plainly for someone who isn't a developer. If you touch the Filipino, Bisaya, Hiligaynon, or Ilocano prompts or UI copy and you're a native speaker — please say so in the PR. That's exactly the review the project can't do on its own.

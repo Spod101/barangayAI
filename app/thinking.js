@@ -23,14 +23,15 @@ function toggleThinkingQuick() {
 }
 
 // Applies thinking on/off to the request payload for Qwen3-family models.
-// Both signals are Ollama/Qwen specific, so they only go out to local endpoints:
+// Both signals are Ollama/Qwen specific, so they only go to endpoints that have
+// identified themselves as Ollama (see isOllamaEndpoint in app/models.js):
 //   - chat_template_kwargs is not an OpenAI field. Ollama ignores unknown fields,
 //     but cloud providers validate the body strictly and answer 400 Bad Request,
 //     which killed every message sent to an added API endpoint.
 //   - /think and /no_think are Qwen chat-template tokens. Anywhere else they are
 //     just stray text pasted onto the user's question.
 function applyThinkingSwitch(payload) {
-  if (window.ACTIVE_KIND !== 'local') return;
+  if (!isOllamaEndpoint(window.ACTIVE_BASE, window.ACTIVE_KIND)) return;
   const on = !!window._THINKING_ENABLED;
   payload.chat_template_kwargs = { enable_thinking: on };
   const msgs = payload.messages;

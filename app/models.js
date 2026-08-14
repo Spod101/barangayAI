@@ -137,6 +137,47 @@ function computeModelBadges(rows) {
   return badges;
 }
 
+// ── IS THIS ENDPOINT OLLAMA? ──────────────────────────────────────────
+// Ollama accepts request fields no other provider does (see applyThinkingSwitch
+// in app/thinking.js), so something has to decide where those may be sent. The
+// `kind` field can't: it records which box the user typed the URL into, and
+// someone adding an Ollama that runs on another machine reasonably picks "API".
+// So ask the endpoint instead — Ollama serves its native API alongside the
+// OpenAI-compatible one, with /v1/models and /api/version on the same root.
+//   true    = answered Ollama's /api/version
+//   false   = answered, but isn't Ollama
+//   absent  = not asked yet, or asked and got nothing back → callers fall back
+//             to `kind`, which is how this behaved before the probe existed
+const OLLAMA_ENDPOINTS = new Map();   // base -> boolean
+
+async function probeOllama(base) {
+  if (!base) return;
+  const root = base.replace(/\/v1$/, '');
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(`${root}/api/version`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!res.ok) { OLLAMA_ENDPOINTS.set(base, false); return; }   // e.g. Groq answers 401 here
+    const data = await res.json();
+    OLLAMA_ENDPOINTS.set(base, typeof data?.version === 'string');
+  } catch (e) {
+    // Unreachable, blocked, or not JSON. Leave it unrecorded rather than
+    // storing a "not Ollama" we aren't sure of — a local Ollama that simply
+    // wasn't running yet must not lose its thinking controls for the session.
+    // refreshEndpointStatuses retries any base that isn't recorded.
+    OLLAMA_ENDPOINTS.delete(base);
+  }
+}
+
+// Answers the question above for one endpoint, falling back to how it was added
+// while the probe is unknown. Read live rather than cached on window, so a probe
+// that resolves after a model was selected still counts.
+function isOllamaEndpoint(base, kind) {
+  const probed = OLLAMA_ENDPOINTS.get(base);
+  return (probed === undefined) ? (kind || 'local') === 'local' : probed;
+}
+
 // Probe one endpoint's /models and record whether it's reachable.
 async function probeEndpoint(base, key) {
   if (!base) return;
@@ -166,7 +207,12 @@ function refreshEndpointStatuses() {
   for (const m of MODEL_LIST) {
     if (m.base && !seen.has(m.base)) seen.set(m.base, m.key);
   }
-  seen.forEach((key, base) => probeEndpoint(base, key));
+  seen.forEach((key, base) => {
+    probeEndpoint(base, key);
+    // Once per base, not once per tick — and retried on the next tick for any
+    // endpoint that was unreachable when we last asked.
+    if (!OLLAMA_ENDPOINTS.has(base)) probeOllama(base);
+  });
 }
 
 function renderModelList(filter) {
@@ -386,6 +432,7 @@ function deleteEndpoint(gi) {
   g.models.forEach(m => _DISABLED_MODELS.delete(modelKey(m)));
   MODEL_LIST = MODEL_LIST.filter(m => m.base !== g.base);
   _EXPANDED_ENDPOINTS.delete(g.base);
+  OLLAMA_ENDPOINTS.delete(g.base);           // re-ask if it's ever added back
   _REMOVED_ENDPOINTS.add(g.base);            // skip on next discovery until re-added
   persistRemovedEndpoints();
   persistDisabledModels();
@@ -593,6 +640,9 @@ async function initModelRegistry() {
   // trusting a model name baked into my-ai.json, so swapping the env var
   // is all it takes to change models.
   if (window.IS_VISITOR) {
+    // /api is the owner's proxy in front of a cloud provider, never Ollama.
+    // Recorded outright so no page load spends a request asking.
+    OLLAMA_ENDPOINTS.set('/api', false);
     const ids = await discoverModels('/api', '');
     const name = ids[0] || (window.PUBLISHED_CONFIG?.model?.label) || 'cloud model';
     const entry = addModelEntry({ model: name, base: '/api', key: '', kind: 'api', source: 'published' });
@@ -657,8 +707,9 @@ async function addEndpoint(kind) {
   let added = 0;
   let first = null;
 
-  // Try to discover models from the endpoint
-  const ids = await discoverModels(base, key);
+  // Try to discover models from the endpoint. Ask what it is at the same time,
+  // so the answer is in before the user can send to the model we select below.
+  const [ids] = await Promise.all([discoverModels(base, key), probeOllama(base)]);
   ids.forEach(id => { const e = addModelEntry({ model: id, base, key, kind, source: 'user' }); if (!first) first = e; added++; });
 
   // Cloud providers usually don't expose /models without scopes — fall back to provider default
