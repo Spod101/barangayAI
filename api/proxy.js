@@ -40,6 +40,59 @@ function sendModels(res, cfg) {
   res.status(200).json({ object: 'list', data: [{ id: cfg.model, object: 'model', owned_by: 'published' }] });
 }
 
+// Numeric knobs the app exposes in Settings → Model that every
+// OpenAI-compatible provider accepts. Anything not named here never reaches
+// upstream — see buildPayload.
+const PASSTHROUGH_NUMBERS = ['temperature', 'top_p', 'presence_penalty', 'frequency_penalty', 'seed'];
+
+// role + content only. Extra per-message fields are dropped on purpose:
+// `messages[].name`, for one, is a documented 400 on Groq.
+function sanitizeMessages(input) {
+  if (!Array.isArray(input)) return [];
+  const out = [];
+  for (const m of input) {
+    if (!m || typeof m.role !== 'string' || typeof m.content !== 'string') continue;
+    out.push({ role: m.role, content: m.content });
+  }
+  return out;
+}
+
+// The client body is advisory, and on a published site it is also untrusted:
+// it can come from a stale cached copy of the app, a visitor's older deploy, or
+// anyone poking /api directly. Forwarding it verbatim is what broke published
+// chat — the app used to attach chat_template_kwargs, an Ollama-only field, and
+// providers answer 400 Bad Request for fields they do not recognise. So the
+// upstream request is rebuilt from an allowlist rather than spread from input,
+// which also means a future client-side option cannot silently break every
+// published site until it is added here deliberately.
+function buildPayload(body, cfg) {
+  const requested = Number(body.max_tokens);
+  const payload = {
+    // The owner's env vars decide the model and the ceiling, not the client.
+    model: cfg.model,
+    messages: sanitizeMessages(body.messages),
+    max_tokens: Number.isFinite(requested)
+      ? Math.max(1, Math.min(Math.floor(requested), MAX_TOKENS_CAP))
+      : MAX_TOKENS_CAP,
+  };
+  for (const k of PASSTHROUGH_NUMBERS) {
+    const n = Number(body[k]);
+    if (body[k] !== undefined && body[k] !== null && Number.isFinite(n)) payload[k] = n;
+  }
+  if (body.stream === true) {
+    payload.stream = true;
+    if (body.stream_options && typeof body.stream_options === 'object') {
+      payload.stream_options = { include_usage: body.stream_options.include_usage === true };
+    }
+  }
+  if (typeof body.stop === 'string') payload.stop = body.stop;
+  else if (Array.isArray(body.stop)) {
+    const stops = body.stop.filter(s => typeof s === 'string').slice(0, 4);
+    if (stops.length) payload.stop = stops;
+  }
+  return payload;
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     if (req.body) return resolve(req.body);   // already parsed by the runtime
@@ -93,14 +146,16 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const requested = Number(body.max_tokens);
-  const payload = {
-    ...body,
-    // Whatever the client asked for is advisory only — the owner's env var
-    // decides the model, and the cap decides the length.
-    model: cfg.model,
-    max_tokens: Number.isFinite(requested) ? Math.min(requested, MAX_TOKENS_CAP) : MAX_TOKENS_CAP,
-  };
+  const payload = buildPayload(body, cfg);
+
+  // Catch this here rather than letting the provider answer 400 — upstream's
+  // wording would surface to the visitor as an unexplained failure.
+  if (!payload.messages.length) {
+    res.status(400).json({
+      error: { message: 'No messages to send.', code: 'no_messages' },
+    });
+    return;
+  }
 
   try {
     const upstream = await fetch(`${cfg.base}/chat/completions`, {
