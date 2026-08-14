@@ -224,6 +224,12 @@ Everything stays on your device. Conversations are stored in your browser's Inde
 
 ---
 
+## Contributing
+
+Pull requests are welcome — especially ones that make the app lighter on low-end laptops or better in Filipino languages. `main` is protected, so every change lands through a PR. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, how to test a change without a test suite, and what never belongs in a commit.
+
+---
+
 ## License
 
 Released under the [MIT License](LICENSE) — free to use, modify, fork, and share. Perfect for camps and classrooms.
