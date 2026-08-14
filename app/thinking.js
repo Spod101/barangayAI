@@ -23,8 +23,14 @@ function toggleThinkingQuick() {
 }
 
 // Applies thinking on/off to the request payload for Qwen3-family models.
-// Both signals are harmless no-ops on models that don't support them.
+// Both signals are Ollama/Qwen specific, so they only go out to local endpoints:
+//   - chat_template_kwargs is not an OpenAI field. Ollama ignores unknown fields,
+//     but cloud providers validate the body strictly and answer 400 Bad Request,
+//     which killed every message sent to an added API endpoint.
+//   - /think and /no_think are Qwen chat-template tokens. Anywhere else they are
+//     just stray text pasted onto the user's question.
 function applyThinkingSwitch(payload) {
+  if (window.ACTIVE_KIND !== 'local') return;
   const on = !!window._THINKING_ENABLED;
   payload.chat_template_kwargs = { enable_thinking: on };
   const msgs = payload.messages;
@@ -476,6 +482,11 @@ async function sendMessage() {
         return;
       }
 
+      // Which endpoint just failed decides which advice is true. Everything
+      // below the cloud branch assumes a local Ollama the reader can restart.
+      const _isCloud = window.ACTIVE_KIND === 'api';
+      const _http = parseHttpError(msg);
+
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS') || msg.includes('Load failed')) {
         try {
           const xhrResult = await xhrFallback(payload);
@@ -493,7 +504,7 @@ async function sendMessage() {
           document.getElementById('message-input').focus();
           return;
         } catch {
-          errorData = {
+          errorData = _isCloud ? cloudErrorCard(null, '') : {
             title: "Ollama isn't allowing browser requests",
             desc: "The AI model is running but your browser can't reach it because of a security setting. This is a one-line fix.",
             steps: [
@@ -507,6 +518,8 @@ async function sendMessage() {
             ctaLabel: 'Open the setup guide',
           };
         }
+      } else if (_isCloud) {
+        errorData = cloudErrorCard(_http.status, _http.detail);
       } else if (msg.includes('401')) {
         errorData = {
           title: "Ollama rejected the connection",

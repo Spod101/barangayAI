@@ -722,6 +722,90 @@ function renderErrorBubble(errorData) {
   scrollToBottom();
 }
 
+// A failed request is thrown as `HTTP <status>: <body>`. Pull the status back
+// out, plus whatever human-readable reason the provider put in the body, so a
+// failure can be explained instead of guessed at. status is null when the
+// request never got a response at all (network / CORS).
+function parseHttpError(msg) {
+  const m = /^HTTP (\d{3})(?::\s*([\s\S]*))?$/.exec((msg || '').trim());
+  if (!m) return { status: null, detail: '' };
+  let detail = (m[2] || '').trim();
+  try {
+    const body = JSON.parse(detail);
+    detail = body?.error?.message || body?.message || detail;
+  } catch (e) {}
+  if (detail.length > 300) detail = detail.slice(0, 300) + '…';
+  return { status: Number(m[1]), detail };
+}
+
+// Troubleshooting card for a failed request to an added cloud endpoint. The
+// Ollama-flavoured cards below are the right advice for a student running a
+// model on their own machine and the wrong advice for one calling an API — they
+// send the reader to restart a server they aren't using, while hiding the
+// provider's own explanation of what it refused. No setup-guide CTA here for
+// the same reason: that guide is about installing Ollama.
+function cloudErrorCard(status, detail) {
+  const host = (() => {
+    try { return new URL(window.ACTIVE_BASE).host; } catch (e) { return window.ACTIVE_BASE; }
+  })();
+  const model = window.ACTIVE_MODEL || 'the model';
+  const said = detail ? [{ text: `${host} said:`, code: detail }] : [];
+  let title, desc, steps;
+
+  if (status === null) {
+    title = `Couldn't reach ${host}`;
+    desc = 'The request never came back. That is usually the network rather than the endpoint itself.';
+    steps = [
+      { text: 'Check this machine is online, then send again' },
+      { text: 'Open "Add Models" and press Test on this endpoint to confirm it answers' },
+      { text: 'A blocked connection on a school or office network is common — a local model in the picker needs no internet' },
+    ];
+  } else if (status === 401 || status === 403) {
+    title = `${host} rejected the API key`;
+    desc = 'The endpoint was reached, but the key it was given is missing, wrong, or has no access to this model.';
+    steps = [
+      { text: 'Copy a fresh key from your provider dashboard' },
+      { text: 'Open "Add Models" and add the endpoint again with that key — check it pasted whole, with no stray spaces' },
+      ...said,
+    ];
+  } else if (status === 404) {
+    title = `${host} has no model called "${model}"`;
+    desc = 'The endpoint is reachable, but it does not recognise this model name. Providers rename and retire models fairly often.';
+    steps = [
+      { text: 'Open the model picker and choose a different model from this endpoint' },
+      { text: 'If the list looks out of date, delete the endpoint in "Add Models" and add it again to re-read what it serves' },
+      ...said,
+    ];
+  } else if (status === 429) {
+    title = `${host} is rate-limiting this key`;
+    desc = 'The request was fine — there have just been too many of them, or too many tokens, for what this key is currently allowed.';
+    steps = [
+      { text: 'Wait a minute, then send again' },
+      { text: 'Free tiers reset on a schedule — check the usage page on your provider dashboard' },
+      { text: 'Or switch to a local model in the picker, which has no quota at all' },
+      ...said,
+    ];
+  } else if (status >= 500) {
+    title = `${host} had a server error`;
+    desc = 'The problem is on the provider\'s side, not in your setup or your message.';
+    steps = [
+      { text: 'Wait a few seconds and send again — these usually clear on their own' },
+      { text: 'If it keeps failing, check the provider\'s status page' },
+      ...said,
+    ];
+  } else {
+    title = `${host} rejected the request`;
+    desc = 'The endpoint was reached and the key worked, but it refused something in the request itself — usually an option this model does not accept.';
+    steps = [
+      { text: 'Turn Deep thinking and Web search off, then send again — that narrows it to one option' },
+      { text: 'Lower "Max tokens" in Settings → Model if it is above what this model allows' },
+      { text: 'Confirm the model name is one this endpoint actually serves' },
+      ...said,
+    ];
+  }
+  return { title, desc, steps, cta: false };
+}
+
 // Two distinct, educational states when there is no model to send to.
 const NO_MODEL_ERROR = {
   title: "No AI model is installed on this computer",

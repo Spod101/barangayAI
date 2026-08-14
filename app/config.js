@@ -49,6 +49,11 @@ const OLLAMA_PERSIST_CMD = IS_WINDOWS
 window.ACTIVE_MODEL = null;       // no model is selected by default — the user must pick one
 window.ACTIVE_BASE  = API_BASE;   // default endpoint used for discovery; switched when a model is selected
 window.ACTIVE_KEY   = API_KEY;
+// 'local' (Ollama) or 'api' (cloud, OpenAI-compatible). Local endpoints ignore
+// unknown request fields; cloud ones reject them with a 400, so a few
+// Ollama-only knobs have to be left out for 'api'. Also picks which
+// troubleshooting advice makes sense when a request fails.
+window.ACTIVE_KIND  = 'local';
 
 // ── TONE PRESETS ──────────────────────────────────────────────────────
 const TONE_PRESETS = {

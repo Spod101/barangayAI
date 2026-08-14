@@ -227,6 +227,7 @@ function selectModel(id, opts = {}) {
   window.ACTIVE_MODEL = m.model;
   window.ACTIVE_BASE  = m.base || API_BASE;
   window.ACTIVE_KEY   = m.key  || API_KEY;
+  window.ACTIVE_KIND  = m.kind || 'local';
 
   // Update composer trigger label + icon (real vendor logo when recognized)
   const labelEl = document.getElementById('model-select-label');
@@ -251,6 +252,7 @@ function selectModel(id, opts = {}) {
 // Clear the active model (e.g. after it was disabled or its endpoint deleted).
 function deselectModel() {
   window.ACTIVE_MODEL = null;
+  window.ACTIVE_KIND  = 'local';   // back to the default local endpoint's rules
   const labelEl = document.getElementById('model-select-label');
   if (labelEl) labelEl.textContent = 'Select model';
   const iconEl = document.getElementById('model-select-icon');
