@@ -34,10 +34,70 @@ function syncThemeIcon() {
   document.querySelectorAll('#theme-icon, #rail-theme-icon').forEach(icon => icon.innerHTML = html);
 }
 
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+// ── COMPOSER LAYOUT ───────────────────────────────────────────────────
+// The controls sit inline with the draft while it's short, then move below
+// it once the text would wrap — so a long message gets the full width of
+// the box instead of a squeezed column between the "+" and the model pill.
+// The textarea can't detect the wrap itself (it always fills the width it's
+// given), so a hidden mirror span measures the draft's natural width.
+const _COMPOSER_MAX_H = 140;    // matches #message-input's max-height
+const _COMPOSER_MIN_SLOT = 150; // narrower than this and the draft gets its own row
+
+function syncComposer() {
+  const input = document.getElementById('message-input');
+  if (!input) return;
+  const controls = document.getElementById('composer-controls');
+  const measure = document.getElementById('composer-measure');
+
+  // Below 640px the stacked layout is forced in CSS (see the mobile block in
+  // styles.css), so there's nothing to measure.
+  const stacked = window.matchMedia('(max-width: 640px)').matches;
+
+  if (controls && measure && !stacked) {
+    measure.textContent = input.value;
+    // Width left for the textarea when it shares the row with the controls.
+    const siblings = Array.from(controls.children)
+      .filter(el => el !== input && el.offsetParent !== null);
+    const taken = siblings.reduce((w, el) => w + el.offsetWidth, 0);
+    const gap = parseFloat(getComputedStyle(controls).columnGap) || 0;
+    const room = controls.clientWidth - taken - gap * siblings.length;
+    const wraps =
+      input.value.includes('\n') ||
+      // A narrow window, an open sidebar, or a long model name can leave a
+      // slot too thin to type in — take the whole line rather than a sliver.
+      room < _COMPOSER_MIN_SLOT ||
+      // +8px so the switch happens a hair before the text actually collides.
+      measure.offsetWidth + 8 > room;
+    controls.classList.toggle('expanded', wraps);
+  }
+
+  // Grow to fit, then scroll — measured after the layout switch above, since
+  // the available width is what decides how many lines the draft takes.
+  input.style.height = '0px';
+  const content = input.scrollHeight;
+  input.style.height = Math.min(content, _COMPOSER_MAX_H) + 'px';
+  input.style.overflowY = content > _COMPOSER_MAX_H ? 'auto' : 'hidden';
+
+  syncSendState();
 }
+
+// Send button reads "armed" only when there's something to send. Purely
+// visual — sendMessage() is still the one guard on an empty draft.
+function syncSendState() {
+  const btn = document.getElementById('send-btn');
+  const input = document.getElementById('message-input');
+  if (!btn || !input) return;
+  if (btn.classList.contains('stop')) return;   // generating — leave it red
+  btn.classList.toggle('idle', input.value.trim().length === 0);
+}
+
+// The textarea's inline oninput handler.
+function autoResize() { syncComposer(); }
+
+// Re-measure when the box itself changes width (sidebar collapse, rotation,
+// window resize) — the same draft can wrap at one width and not at another.
+window.addEventListener('resize', syncComposer);
+document.addEventListener('DOMContentLoaded', syncComposer);
 
 function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -50,8 +110,10 @@ function handleKey(e) {
 let _streamAbort = null;     // AbortController for the in-flight generation
 let _userCancelled = false;  // true when the user pressed Stop
 
-const _ICON_SEND = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9 22,2"/></svg>';
-const _ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="white"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
+// Both draw with currentColor so the button can mute the glyph in its idle
+// state instead of leaving a white icon on a pale background.
+const _ICON_SEND = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const _ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
 
 // Toggle the composer button between Send and Stop.
 function setSendMode(streaming) {
@@ -61,6 +123,7 @@ function setSendMode(streaming) {
   btn.classList.toggle('stop', streaming);
   btn.title = streaming ? 'Stop generating' : 'Send message';
   btn.innerHTML = streaming ? _ICON_STOP : _ICON_SEND;
+  syncSendState();
 }
 
 function handleSendClick() {

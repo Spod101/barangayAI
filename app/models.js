@@ -288,9 +288,11 @@ function selectModel(id, opts = {}) {
   // Re-render picker rows to reflect active state
   renderModelList(document.getElementById('model-dd-search')?.value || '');
 
-  // Update subtitle
-  const subtitle = document.getElementById('header-subtitle');
-  if (subtitle) subtitle.textContent = `${m.model} · ${m.kind === 'local' ? 'Local' : m.endpoint}`;
+  // The new model's status is unknown until it's probed. Without this the chip
+  // kept showing the *previous* model's verdict — usually "Offline" — until the
+  // 15s poll came around, so a perfectly good model looked broken for up to a
+  // quarter of a minute. Probe now, and say "Checking…" while we wait.
+  checkConnectivity({ announce: true });
 
   if (!opts.silent) showToast(`Switched to ${m.model}`);
 }
@@ -307,12 +309,6 @@ function deselectModel() {
   if (labelElMobile) labelElMobile.textContent = 'Select model';
   const iconElMobile = document.getElementById('model-select-icon-mobile');
   if (iconElMobile) iconElMobile.innerHTML = modelIcon.replace(/width="16" height="16"/, 'width="15" height="15"');
-  const subtitle = document.getElementById('header-subtitle');
-  if (subtitle) {
-    subtitle.textContent = MODEL_LIST.some(m => m.enabled !== false)
-      ? 'No model selected — choose one below'
-      : 'No model available';
-  }
 }
 
 // ── ENDPOINT MANAGER (Added Models) ───────────────────────────────────
@@ -646,14 +642,11 @@ async function initModelRegistry() {
     const ids = await discoverModels('/api', '');
     const name = ids[0] || (window.PUBLISHED_CONFIG?.model?.label) || 'cloud model';
     const entry = addModelEntry({ model: name, base: '/api', key: '', kind: 'api', source: 'published' });
+    // selectModel() re-probes on its own now, which is what rescues the visitor
+    // view: the module-level check ran against the default local endpoint and
+    // failed (127.0.0.1 is the visitor's own machine), so without a re-probe
+    // against /api a working site sits on "Offline" until the 15s tick.
     selectModel(entry.id, { silent: true });
-    const subtitle = document.getElementById('header-subtitle');
-    if (subtitle) subtitle.textContent = `${name} · hosted`;
-    // The module-level checkConnectivity() already ran against the default
-    // local endpoint and failed (127.0.0.1 is the visitor's own machine),
-    // parking the header on "Offline". Re-check now that /api is selected,
-    // instead of letting a working site look broken until the 15s tick.
-    checkConnectivity();
     refreshEndpointStatuses();
     return;
   }
@@ -683,8 +676,6 @@ async function initModelRegistry() {
       selectModel(pick.id, { silent: true });
       showToast(`Auto-selected ${pick.model} for your PC — change it any time below`);
     } else {
-      const subtitle = document.getElementById('header-subtitle');
-      if (subtitle) subtitle.textContent = 'No model installed — pull one with Ollama';
       const labelEl = document.getElementById('model-select-label');
       if (labelEl) labelEl.textContent = 'Select model';
       const labelElMobile = document.getElementById('model-select-label-mobile');
@@ -728,9 +719,22 @@ async function addEndpoint(kind) {
 }
 
 // ── CONNECTIVITY CHECK ────────────────────────────────────────────────
-async function checkConnectivity() {
+// Every check gets a ticket. Switching models fires a fresh check while the
+// previous model's probe may still be in flight, and that older probe must not
+// be allowed to stamp its verdict on the new model when it finally lands.
+let _connCheckId = 0;
+
+async function checkConnectivity(opts = {}) {
+  const id   = ++_connCheckId;
   const base = window.ACTIVE_BASE || API_BASE;
   const key  = window.ACTIVE_KEY  || API_KEY;
+
+  // Announce only where a person is waiting on the answer (first load, model
+  // switch). The 15s background poll stays silent — flashing "Checking…" four
+  // times a minute would be noise, not information.
+  if (opts.announce) renderConnState('checking');
+
+  const settle = (ok) => { if (id === _connCheckId) setConnected(ok); };
 
   try {
     const ctrl = new AbortController();
@@ -745,7 +749,7 @@ async function checkConnectivity() {
     // a published site returns before its key is set) used to read as
     // "connected", so the header claimed the model was online while every
     // message failed. Fall through to the chat probe instead.
-    if (res.ok) { setConnected(true); return; }
+    if (res.ok) { settle(true); return; }
   } catch {}
 
   // Only probe chat completions if a model is actually selected (otherwise the
@@ -761,39 +765,57 @@ async function checkConnectivity() {
         signal: ctrl2.signal
       });
       clearTimeout(timeout2);
-      if (res2.ok) { setConnected(true); return; }
+      if (res2.ok) { settle(true); return; }
     } catch {}
   }
 
-  setConnected(false);
+  settle(false);
 }
 
 function setConnected(ok) {
   isConnected = ok;
+  // A verdict — including the ones thinking.js reports from a real stream —
+  // retires any probe still in flight. An actual reply is better evidence than
+  // a probe, and shouldn't be undone a second later by a slow one.
+  _connCheckId++;
+  renderConnState(ok ? 'online' : 'offline');
+}
 
-  const label = window.ACTIVE_MODEL || 'Ollama';
+// Three states, not two: 'checking' | 'online' | 'offline'. "Not yet verified"
+// and "verified dead" look nothing alike to a student staring at the header.
+function renderConnState(state) {
+  const label    = window.ACTIVE_MODEL || 'Ollama';
+  const checking = state === 'checking';
+  const ok       = state === 'online';
 
   const chip = document.getElementById('header-status-chip');
   const text = document.getElementById('header-status-text');
-  chip.classList.toggle('disconnected', !ok);
-  text.textContent = ok ? label : 'Offline';
+  if (chip) {
+    chip.classList.toggle('checking', checking);
+    chip.classList.toggle('disconnected', state === 'offline');
+  }
+  if (text) text.textContent = checking ? `Checking ${label}…` : (ok ? label : 'Offline');
 
   const card = document.getElementById('sidebar-wifi');
   const status = document.getElementById('sidebar-wifi-status');
   const statusText = document.getElementById('sidebar-wifi-text');
-  card.className = 'sidebar-wifi ' + (ok ? 'connected' : 'disconnected');
-  status.className = 'sidebar-wifi-status ' + (ok ? 'ok' : 'err');
-  statusText.textContent = ok ? 'Connected · Model online' : `${label} not detected`;
+  if (card)   card.className   = 'sidebar-wifi ' + (checking ? 'checking' : ok ? 'connected' : 'disconnected');
+  if (status) status.className = 'sidebar-wifi-status ' + (checking ? 'checking' : ok ? 'ok' : 'err');
+  if (statusText) statusText.textContent = checking
+    ? `Checking ${label}…`
+    : ok ? 'Connected · Model online' : `${label} not detected`;
 
   const railDot = document.getElementById('rail-dot');
-  if (railDot) railDot.className = 'rail-dot ' + (ok ? 'ok' : 'err');
+  if (railDot) railDot.className = 'rail-dot ' + (checking ? 'checking' : ok ? 'ok' : 'err');
 
-  document.getElementById('send-btn').disabled = false;
-  document.getElementById('message-input').placeholder = ok
-    ? 'What\'s on your mind?'
-    : `${label} not detected — is it running?`;
+  const sendBtn = document.getElementById('send-btn');
+  if (sendBtn) sendBtn.disabled = false;
+  const input = document.getElementById('message-input');
+  if (input) input.placeholder = checking
+    ? `Checking ${label}…`
+    : ok ? 'What\'s on your mind?' : `${label} not detected — is it running?`;
 }
 
-checkConnectivity();
+checkConnectivity({ announce: true });
 setInterval(() => { checkConnectivity(); refreshEndpointStatuses(); }, 15000);
 

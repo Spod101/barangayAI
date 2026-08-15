@@ -20,9 +20,20 @@
     --dc-gold: #FFC93C;
     --dc-orange: #FF8A3D;
     --dc-green: #5FBF6B;
-    --bg-primary: #F7F9FC;
+    /* Light mode sits a few steps below paper-white so the white panels/
+       bubbles laid on top of it read as raised surfaces instead of melting
+       into the page — the old #F7F9FC was bright enough to glare and left
+       cards with almost no edge. */
+    --bg-primary: #EBEFF9;
     --bg-panel: #FFFFFF;
-    --bg-sidebar: var(--dc-blue-deeper);
+    /* The sidebar/rail is a dark brand slab in both themes; a vertical
+       blue→violet gradient (rather than a flat fill) ties it to the poster
+       art and to the body glow behind it. */
+    --bg-sidebar:
+      linear-gradient(168deg,
+        color-mix(in srgb, var(--dc-blue) 60%, black) 0%,
+        color-mix(in srgb, var(--dc-blue) 42%, black) 52%,
+        color-mix(in srgb, var(--dc-violet) 34%, black) 100%);
     --text-primary: #0D1B2E;
     --text-secondary: #4A6280;
     --text-muted: #8AA0B8;
@@ -39,6 +50,23 @@
     --header-h: 92px;
     --shadow-card: 0 2px 12px color-mix(in srgb, var(--dc-blue) 8%, transparent);
     --shadow-input: 0 2px 20px color-mix(in srgb, var(--dc-blue) 12%, transparent);
+
+    /* Sidebar ink — the panel is dark in BOTH themes, so its whites live in
+       their own scale rather than following --text-*. They were mixed down
+       far enough (section labels at 0.22, items at 0.55) that the nav read
+       as permanently disabled; these are the legible floor. */
+    --sb-text: rgba(255,255,255,0.78);
+    --sb-text-strong: #FFFFFF;
+    --sb-text-dim: rgba(255,255,255,0.55);
+    --sb-text-faint: rgba(255,255,255,0.42);
+    --sb-border: rgba(255,255,255,0.10);
+    --sb-hover-bg: rgba(255,255,255,0.10);
+
+    /* Ambient .bg-scene ink. Light mode can't use white dust (invisible on
+       a near-white page) or gold (too pale), so both swap to saturated
+       brand hues; dark mode keeps the original white/gold embers. */
+    --scene-dust: var(--dc-violet);
+    --scene-gold: var(--dc-orange);
   }
 
   /* DEVCON 17 dark theme — deep indigo/violet void (poster background) with
@@ -47,7 +75,9 @@
   [data-theme="dark"] {
     --bg-primary: #17132E;
     --bg-panel: #221C46;
-    --bg-sidebar: #120E26;
+    --bg-sidebar: linear-gradient(168deg, #1A1438 0%, #120E26 55%, #0D0A1F 100%);
+    --scene-dust: #FFFFFF;
+    --scene-gold: var(--dc-gold);
     --text-primary: #ECE9FA;
     --text-secondary: #9A93C2;
     --text-muted: #5C5484;
@@ -73,17 +103,23 @@
       var(--bg-primary);
   }
 
-  /* Light mode gets the same layered-glow treatment, tuned to a whisper of
-     the logo's gold/orange/violet/green so white panels and text stay
-     crisp on top of it. */
+  /* Light mode gets the same layered-glow treatment. The stops used to sit
+     at 4–8% over a near-white base, which washed out to a flat glare; at
+     roughly double the strength — plus a violet→blue diagonal wash under
+     everything — the logo's gold/orange/violet/green actually read as
+     colour while white panels and near-black text stay crisp on top. */
   body {
     font-family: var(--font-main);
     background:
-      radial-gradient(1100px 750px at 12% -8%, color-mix(in srgb, var(--dc-violet) 8%, transparent), transparent 60%),
-      radial-gradient(950px 700px at 92% 8%, rgba(0,168,232,0.06), transparent 55%),
-      radial-gradient(850px 650px at 100% 55%, color-mix(in srgb, var(--dc-orange) 5%, transparent), transparent 55%),
-      radial-gradient(900px 800px at 45% 115%, color-mix(in srgb, var(--dc-green) 5%, transparent), transparent 60%),
-      radial-gradient(700px 600px at 0% 100%, color-mix(in srgb, var(--dc-gold) 4%, transparent), transparent 55%),
+      radial-gradient(1100px 750px at 12% -8%, color-mix(in srgb, var(--dc-violet) 20%, transparent), transparent 62%),
+      radial-gradient(950px 700px at 92% 8%, color-mix(in srgb, var(--dc-accent) 16%, transparent), transparent 58%),
+      radial-gradient(850px 650px at 100% 55%, color-mix(in srgb, var(--dc-orange) 12%, transparent), transparent 58%),
+      radial-gradient(900px 800px at 45% 115%, color-mix(in srgb, var(--dc-green) 11%, transparent), transparent 60%),
+      radial-gradient(700px 600px at 0% 100%, color-mix(in srgb, var(--dc-gold) 12%, transparent), transparent 58%),
+      linear-gradient(150deg,
+        color-mix(in srgb, var(--dc-violet) 9%, transparent) 0%,
+        transparent 45%,
+        color-mix(in srgb, var(--dc-blue) 8%, transparent) 100%),
       var(--bg-primary);
     color: var(--text-primary);
     height: 100dvh;
@@ -105,7 +141,9 @@
     z-index: -1;
     pointer-events: none;
   }
-  .bg-scene .bg-constellation { opacity: 0.18; }
+  /* Light mode needs MORE opacity than dark, not less: hairlines and 2px
+     dots on a pale page disappear well before they would on the void. */
+  .bg-scene .bg-constellation { opacity: 0.5; stroke-width: 1.4; }
   .bg-scene .bg-particles circle,
   .bg-scene .bg-sparkle {
     animation: bg-twinkle 9s ease-in-out infinite;
@@ -115,21 +153,21 @@
   .bg-scene .bg-particles circle:nth-child(5n) { animation-delay: -1.5s; animation-duration: 13s; }
   .bg-scene .bg-sparkle:nth-of-type(2n) { animation-delay: -4.5s; animation-duration: 12s; }
   .bg-scene .bg-sparkle:nth-of-type(3n) { animation-delay: -7s; animation-duration: 10s; }
-  [data-theme="dark"] .bg-scene .bg-constellation { opacity: 0.4; }
+  [data-theme="dark"] .bg-scene .bg-constellation { opacity: 0.4; stroke-width: 1; }
   [data-theme="dark"] .bg-scene .bg-particles circle,
   [data-theme="dark"] .bg-scene .bg-sparkle { animation-name: bg-twinkle-dark; }
   /* A gentle fade plus a few px of drift — enough to feel alive without
      reading as motion that competes with real content. */
   @keyframes bg-twinkle {
-    0%, 100% { opacity: 0.25; transform: translate(0, 0); }
-    50% { opacity: 0.5; transform: translate(2px, -5px); }
+    0%, 100% { opacity: 0.5; transform: translate(0, 0); }
+    50% { opacity: 0.85; transform: translate(2px, -5px); }
   }
   @keyframes bg-twinkle-dark {
     0%, 100% { opacity: 0.4; transform: translate(0, 0); }
     50% { opacity: 0.75; transform: translate(2px, -5px); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .bg-scene .bg-particles circle, .bg-scene .bg-sparkle { animation: none; opacity: 0.4; }
+    .bg-scene .bg-particles circle, .bg-scene .bg-sparkle { animation: none; opacity: 0.7; }
     [data-theme="dark"] .bg-scene .bg-particles circle,
     [data-theme="dark"] .bg-scene .bg-sparkle { opacity: 0.6; }
   }
@@ -142,7 +180,7 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--sb-border);
     border-left: none;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
     margin: 10px 10px 10px 0;
@@ -182,7 +220,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid var(--sb-border);
   }
 
   /* Every DEVCON avatar/CTA that uses the brand gradient — kept in one
@@ -227,7 +265,7 @@
     padding: 8px 12px 4px;
     font-size: 9.5px;
     font-weight: 700;
-    color: rgba(255,255,255,0.22);
+    color: var(--sb-text-faint);
     letter-spacing: 1.2px;
     text-transform: uppercase;
   }
@@ -238,7 +276,7 @@
     padding: 4px 8px 8px;
   }
   .history-list::-webkit-scrollbar { width: 3px; }
-  .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
 
   .history-item {
     padding: 8px 10px;
@@ -247,7 +285,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: rgba(255,255,255,0.55);
+    color: var(--sb-text);
     font-size: 12.5px;
     font-weight: 400;
     transition: all 0.15s;
@@ -255,9 +293,9 @@
     overflow: hidden;
     user-select: none;
   }
-  .history-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+  .history-item:hover { background: var(--sb-hover-bg); color: var(--sb-text-strong); }
   .history-item.active { background: color-mix(in srgb, var(--dc-blue) 20%, transparent); color: var(--dc-blue-tint); }
-  .history-item svg { flex-shrink: 0; opacity: 0.6; }
+  .history-item svg { flex-shrink: 0; opacity: 0.75; }
   .history-item-title {
     flex: 1;
     white-space: nowrap;
@@ -270,8 +308,8 @@
     flex-shrink: 0;
     font-size: 9.5px;
     font-weight: 700;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.14);
+    color: var(--sb-text-dim);
     border-radius: 10px;
     padding: 1px 6px;
     min-width: 18px;
@@ -288,7 +326,7 @@
     border: none;
     padding: 2px 4px;
     cursor: pointer;
-    color: rgba(255,255,255,0.35);
+    color: var(--sb-text-dim);
     border-radius: 4px;
     line-height: 1;
     transition: color 0.15s, background 0.15s;
@@ -298,7 +336,7 @@
 
   .sidebar-footer {
     padding: 10px 12px;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid var(--sb-border);
   }
 
   .model-badge {
@@ -337,10 +375,18 @@
   /* HEADER — only shown once a conversation is active; the welcome/main
      screen stays clean with no header bar (and thus no Back button either,
      since it lives inside it). */
+  /* Separated by a rule, not by a fill. Any opaque or tinted bar is a flat
+     colour laid over the body's radial-gradient glow, so it reads as a block
+     cut into the background with a hard edge against the sidebar. A hairline
+     marks the boundary just as clearly and lets the glow run straight
+     through. Nothing scrolls behind the header either — .chat-area is its
+     flex sibling, not underneath it — so it needs no fill to stay legible. */
   .header {
-    height: var(--header-h);
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--border-light);
+    /* min-height, not height: while the title is being renamed the h1 wraps
+       onto extra lines and the bar grows downward with it. */
+    min-height: var(--header-h);
+    background: transparent;
+    border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     padding: 0 28px;
@@ -375,6 +421,8 @@
     gap: 12px;
   }
   .header-title h1 {
+    flex: 1 1 auto;
+    min-width: 0;              /* lets the flex item shrink so text can wrap */
     font-size: 21px;
     font-weight: 800;
     letter-spacing: -0.3px;
@@ -394,24 +442,19 @@
     transition: background 0.15s;
   }
   .header-title h1[contenteditable="true"]:hover { background: var(--border-light); }
+  /* While editing, a long name wraps downward inside the box instead of
+     running off the header as one line. overflow-wrap: anywhere is what
+     breaks an unbroken run of characters (a pasted URL, a name typed with
+     no spaces); white-space: normal alone would leave it as one long word.
+     Past ~3 lines the box scrolls rather than swallowing the screen. */
   .header-title h1[contenteditable="true"]:focus {
     background: var(--bg-primary);
     box-shadow: 0 0 0 2px var(--dc-blue);
     white-space: normal;
-    overflow: visible;
+    overflow-wrap: anywhere;
     text-overflow: clip;
-  }
-  .header-title p {
-    flex-shrink: 0;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 11px;
-    white-space: nowrap;
-    margin-top: 0;
+    overflow-y: auto;
+    max-height: calc(3.6em + 8px);
   }
 
   .header-actions {
@@ -491,6 +534,28 @@
     animation: none;
   }
 
+  /* "Checking" is a genuine third state, not a flavour of offline: right after
+     you pick a model nothing is known about it yet. Amber + a spinner says
+     "still probing", where the red dot said "this model is dead" — which was
+     a lie for the second or two a cloud endpoint takes to answer. */
+  .status-chip.checking {
+    background: #FFF7ED;
+    border-color: #FED7AA;
+    color: #9A5B0B;
+  }
+  [data-theme="dark"] .status-chip.checking {
+    background: rgba(217,119,6,0.15);
+    border-color: rgba(217,119,6,0.35);
+    color: #FBBF24;
+  }
+  .status-chip.checking .status-dot {
+    width: 9px; height: 9px;
+    background: none;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    animation: spin 0.7s linear infinite;
+  }
+
   /* WIFI BANNER */
   .wifi-banner {
     display: flex;
@@ -560,8 +625,8 @@
   /* SIDEBAR WIFI CARD */
   .sidebar-wifi {
     margin: 8px 10px 4px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--sb-border);
     border-radius: 10px;
     padding: 10px 12px;
     transition: all 0.4s;
@@ -578,7 +643,7 @@
     display: flex; align-items: center; justify-content: center;
     width: 26px; height: 26px;
     border-radius: 7px;
-    background: rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.12);
     flex-shrink: 0;
   }
   .sidebar-wifi-ssid {
@@ -604,6 +669,15 @@
   }
   .sidebar-wifi-status.ok .swifi-dot { background: #22C55E; animation: pulse 2s infinite; }
   .sidebar-wifi-status.err .swifi-dot { background: #EF4444; }
+  .sidebar-wifi.checking { border-color: rgba(217,119,6,0.3); background: rgba(217,119,6,0.07); }
+  .sidebar-wifi-status.checking { color: #FBBF24; }
+  .sidebar-wifi-status.checking .swifi-dot {
+    width: 8px; height: 8px;
+    background: none;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    animation: spin 0.7s linear infinite;
+  }
 
   /* CHAT AREA */
   .chat-area {
@@ -616,22 +690,6 @@
   }
   .chat-area::-webkit-scrollbar { width: 4px; }
   .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  /* Fade scrim sitting between the scroll area and the floating input bar —
-     messages dissolve into the background as they scroll under it instead
-     of ending in a hard seam right at the box's edge. */
-  .chat-fade {
-    display: none;
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 150px;
-    background: linear-gradient(to bottom, transparent, var(--bg-primary) 70%);
-    pointer-events: none;
-    z-index: 5;
-  }
-  .main:not(.welcome-mode) .chat-fade { display: block; }
 
   /* WELCOME */
   .welcome-screen {
@@ -1306,19 +1364,37 @@
     display: none;
   }
 
-  /* Chat mode: leave room for the floating input bar (+ its bottom margin) */
+  /* Chat mode: leave room for the floating input bar (+ its bottom margin),
+     and dissolve messages as they scroll in behind it.
+
+     The fade is a mask on the scroll box, not a coloured scrim laid on top of
+     it. A scrim has to commit to one flat colour, and any flat colour reads as
+     a cut-out rectangle over the body's radial-gradient glow — the previous
+     one painted a 150px band of --bg-primary across the bottom of .main, which
+     showed up as a hard seam running down the sidebar's edge and a visibly
+     mismatched block under the input card. Masking fades the content itself
+     and leaves whatever is behind it completely untouched. */
   .main:not(.welcome-mode) .chat-area {
     padding-bottom: 200px;
+    /* -start/-end are measured up from the bottom of the scroll box: content
+       is fully opaque above -start and fully gone below -end. -top is the
+       short matching fade at the header end, so messages dissolve as they
+       reach the header's rule rather than sliding under it at full strength. */
+    --chat-fade-top: 22px;
+    --chat-fade-start: 150px;
+    --chat-fade-end: 45px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--chat-fade-top), #000 calc(100% - var(--chat-fade-start)), transparent calc(100% - var(--chat-fade-end)));
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--chat-fade-top), #000 calc(100% - var(--chat-fade-start)), transparent calc(100% - var(--chat-fade-end)));
   }
 
   .input-box {
     background: var(--bg-primary);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 8px;
+    padding: 6px;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     transition: border-color 0.2s, box-shadow 0.2s;
     box-shadow: var(--shadow-input);
   }
@@ -1327,8 +1403,59 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--dc-blue) 10%, transparent), var(--shadow-input);
   }
 
+  /* Off-screen twin of the textarea, used only to measure the draft's
+     natural width (see syncComposer in app/chat.js). Absolute + invisible
+     so it never affects layout or gets read out. */
+  .composer-measure {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: pre;
+    font-family: var(--font-main);
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  /* Two layouts, one flex row.
+     Collapsed — everything shares the line:  [ + ][ text …… ][ model ][ ↑ ]
+     Expanded  — the draft takes the line:    [ text ……………………………………………… ]
+                                              [ + ]        [ model ][ ↑ ]
+     Sending the textarea to 100% is what wraps the controls onto their own
+     line; nothing is placed by hand, so visitor mode (which drops the "+"
+     and the model picker from the DOM) reflows on its own.
+
+     Collapsed stays nowrap on purpose. A wrapping flex container breaks its
+     lines from each item's *unshrunk* basis, so a bare <textarea> (which is
+     ~20 characters wide by default) plus a long model name would push the
+     controls onto a second line by itself — the composer must only ever
+     restack when syncComposer() decides it should. */
+  .composer-controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  /* basis 0, not auto: the textarea takes the room that's left over rather
+     than asking for its intrinsic width first. */
+  .composer-controls > #message-input { flex: 1 1 0; min-width: 0; }
+  .composer-controls > .model-select-btn { min-width: 0; }
+
+  .composer-controls.expanded { flex-wrap: wrap; }
+  .composer-controls.expanded > #message-input {
+    order: -1;
+    flex: 1 0 100%;
+  }
+  /* Collapsed, the stretched textarea already pushes these right; once it
+     moves up a line, they need the push themselves. */
+  .composer-controls.expanded > .model-select-btn {
+    margin-left: auto;
+    flex-shrink: 1;   /* last resort on a very narrow controls row */
+  }
+
   #message-input {
-    flex: 1;
+    /* No width here on purpose: flex-basis:auto would inherit it and pin the
+       textarea to a full line, so it could never share one with the controls.
+       .composer-controls.expanded sets the 100% basis when it wants that. */
     min-width: 0;
     border: none;
     background: none;
@@ -1337,12 +1464,13 @@
     color: var(--text-primary);
     resize: none;
     outline: none;
-    min-height: 22px;
-    max-height: 120px;
-    overflow-y: auto;
+    min-height: 36px;
+    max-height: 140px;
+    overflow-y: hidden;
     overflow-x: hidden;
+    overflow-wrap: anywhere;
     line-height: 1.5;
-    padding: 2px 0;
+    padding: 8px 4px;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
@@ -1359,13 +1487,6 @@
     text-overflow: ellipsis;
   }
 
-  .input-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
   .send-btn {
     width: 36px; height: 36px;
     background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-accent) 100%);
@@ -1375,16 +1496,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    color: #fff;
+    transition: background 0.2s, color 0.2s, transform 0.15s, opacity 0.2s;
     flex-shrink: 0;
   }
-  .send-btn:hover { background: linear-gradient(135deg, var(--dc-blue-dark) 0%, var(--dc-blue) 100%); transform: scale(1.04); }
+  @media (hover: hover) {
+    .send-btn:hover { background: linear-gradient(135deg, var(--dc-blue-dark) 0%, var(--dc-blue) 100%); transform: scale(1.04); }
+    [data-theme="dark"] .send-btn:hover { background: linear-gradient(135deg, var(--dc-blue-dark) 0%, var(--dc-violet) 65%, var(--dc-gold) 130%); }
+  }
+  .send-btn:active { transform: scale(0.94); }
   [data-theme="dark"] .send-btn { background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-violet) 65%, var(--dc-gold) 130%); }
-  [data-theme="dark"] .send-btn:hover { background: linear-gradient(135deg, var(--dc-blue-dark) 0%, var(--dc-violet) 65%, var(--dc-gold) 130%); }
   .send-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-  /* Stop / cancel state while the model is generating */
-  .send-btn.stop { background: #DC2626; }
-  .send-btn.stop:hover { background: #b91c1c; }
+  /* Nothing to send yet — the button stays clickable (sendMessage() is the
+     one guard on an empty draft) but drops out of the brand gradient so the
+     composer reads as "waiting for you" rather than "ready to fire". */
+  .send-btn.idle {
+    background: var(--border);
+    color: var(--text-muted);
+  }
+  @media (hover: hover) {
+    .send-btn.idle:hover,
+    [data-theme="dark"] .send-btn.idle:hover { background: var(--border); transform: none; }
+  }
+  /* Stop / cancel state while the model is generating — outranks .idle */
+  .send-btn.stop,
+  .send-btn.stop.idle { background: #DC2626; color: #fff; }
+  @media (hover: hover) {
+    .send-btn.stop:hover,
+    [data-theme="dark"] .send-btn.stop:hover { background: #b91c1c; }
+  }
   .cancelled-note {
     display: flex;
     align-items: center;
@@ -1431,39 +1571,58 @@
     line-height: 1.6;
   }
 
-  /* MODEL SELECT BUTTON (inside input box — Gemini Flash style) */
+  /* MODEL SELECT BUTTON (inside the composer) — a borderless label+chevron
+     that sits flush with the other composer controls instead of reading as
+     a separate outlined pill. */
   .model-select-btn {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 5px 12px;
-    margin-left: 4px;
+    height: 36px;
+    max-width: 190px;
+    padding: 0 8px;
     background: transparent;
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
+    border: none;
+    border-radius: 10px;
     cursor: pointer;
     font-family: var(--font-main);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-secondary);
-    transition: all 0.15s;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.1px;
   }
-  .model-select-btn:hover {
+  #model-select-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (hover: hover) {
+    .model-select-btn:hover {
+      background: var(--dc-blue-light);
+      color: var(--dc-blue);
+    }
+    [data-theme="dark"] .model-select-btn:hover {
+      background: var(--dc-accent-light);
+      color: var(--dc-accent);
+    }
+  }
+  .model-select-btn:active { transform: scale(0.96); }
+  .model-select-btn.open {
     background: var(--dc-blue-light);
-    border-color: var(--dc-blue);
     color: var(--dc-blue);
   }
-  [data-theme="dark"] .model-select-btn:hover {
+  [data-theme="dark"] .model-select-btn.open {
     background: var(--dc-accent-light);
-    border-color: var(--dc-accent);
     color: var(--dc-accent);
   }
-  .model-select-btn svg { flex-shrink: 0; opacity: 0.6; transition: transform 0.2s; }
-  .model-select-btn:hover svg { opacity: 1; }
-  .model-select-btn.open svg { transform: rotate(180deg); }
+  .model-select-btn svg { flex-shrink: 0; }
+  .model-select-btn .model-select-caret { opacity: 0.6; transition: transform 0.2s, opacity 0.2s; }
+  .model-select-btn:hover .model-select-caret { opacity: 1; }
+  .model-select-btn.open .model-select-caret { transform: rotate(180deg); opacity: 1; }
   #model-select-icon { display: inline-flex; align-items: center; flex-shrink: 0; }
   #model-select-icon img.model-dd-icon { opacity: 1; }
 
@@ -1471,18 +1630,19 @@
   .tools-wrap { position: relative; flex-shrink: 0; }
 
   .tools-btn {
-    width: 34px; height: 34px;
+    width: 36px; height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     border: none;
-    border-radius: 50%;
+    border-radius: 10px;
     cursor: pointer;
     color: var(--text-muted);
-    transition: all 0.15s;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
     position: relative;
   }
+  .tools-btn:active { transform: scale(0.94); }
   /* Hover-only on devices with a real pointer — on touchscreens (no true
      hover), :hover applies on tap and then sticks until something else is
      tapped, leaving the "+" looking permanently lit. The .open highlight
@@ -1556,8 +1716,10 @@
   [data-theme="dark"] .tools-item.active { background: var(--dc-accent-light); color: var(--dc-accent); }
   [data-theme="dark"] .tools-item.active .tools-item-check { color: var(--dc-accent); }
 
-  /* Model picker — only needed inside the "+" menu on mobile, where the
-     model-select pill next to the textarea is hidden for space. */
+  /* Model picker — this was the mobile stand-in for the model-select pill
+     back when that pill was hidden on narrow screens. The stacked composer
+     gives the real pill a row of its own at every width now, so the entry
+     stays hidden rather than listing the model in two places at once. */
   .tools-item-model { display: none; }
   .tools-section-label {
     font-size: 9.5px;
@@ -1572,10 +1734,6 @@
     margin: 4px 2px 6px;
     background: var(--border);
   }
-  @media (max-width: 640px) {
-    .tools-item-model { display: flex; }
-  }
-
   /* Web sources card — shown under answers that used web search */
   .web-sources {
     margin-top: 12px;
@@ -2082,7 +2240,16 @@
     .suggestion-grid { grid-template-columns: 1fr; max-width: 100%; }
     .welcome-title { font-size: 18px; }
     .chat-area { padding: 14px 12px; }
-    .input-area { padding: 8px 10px 12px; display: flex; flex-direction: column; }
+    /* Reclaim the side gutters — 40px of them is a lot of a phone's width. */
+    .input-area { padding: 8px 10px 12px; display: flex; flex-direction: column; width: calc(100% - 20px); }
+    /* The stacked composer is roughly twice as tall as the one-row desktop
+       version, so the last message needs more room to clear it — and the
+       scroll-in fade has to start correspondingly higher. */
+    .main:not(.welcome-mode) .chat-area {
+      padding-bottom: 250px;
+      --chat-fade-start: 215px;
+      --chat-fade-end: 60px;
+    }
 
     /* Partner badges are the least important line here — push them below
        the legal disclaimer instead of sandwiching them right under the box. */
@@ -2096,16 +2263,35 @@
 
     .header { padding: 0 12px; gap: 6px; }
     .back-btn { font-size: 0; gap: 0; padding: 7px; }
-    /* The subtitle pill (model name + Local/API) refuses to shrink and was
-       squeezing the conversation title down to a couple of letters — it's
-       redundant now that the model also shows in the "+" tools menu. */
-    .header-title p { display: none; }
     .header-actions { gap: 4px; }
     .icon-btn { width: 30px; height: 30px; }
 
-    /* The model-select pill (name + chevron) doesn't fit next to the
-       textarea on narrow screens — it moves into the "+" tools menu instead. */
-    .model-select-btn { display: none; }
+    /* COMPOSER (mobile) — there's never enough room to keep the draft inline
+       with the controls, so the stacked layout is permanent here: text on
+       top, controls on a row beneath it. That also buys the model picker its
+       place back; it used to be hidden on narrow screens and reachable only
+       through the "+" menu. */
+    .composer-controls { flex-wrap: wrap; }
+    .composer-controls > #message-input {
+      order: -1;
+      flex: 1 0 100%;
+    }
+    .composer-controls > .model-select-btn { margin-left: auto; flex-shrink: 1; }
+
+    /* iOS zooms the whole page in when a focused field is under 16px. */
+    #message-input {
+      font-size: 16px;
+      padding: 8px 6px;
+      max-height: 120px;
+    }
+    .composer-measure { font-size: 16px; }
+
+    /* The model name is the first thing that should give up width when the
+       row gets tight — the "+" and send buttons are fixed-size targets. */
+    .model-select-btn { max-width: 46vw; }
+
+    /* Clear the home-indicator / gesture bar on modern phones. */
+    .input-area { margin-bottom: max(20px, env(safe-area-inset-bottom)); }
 
     /* Partner badges: force the label onto its own line so the 3 badges
        always wrap together as one centered group below it, instead of
@@ -2316,10 +2502,11 @@
   [data-theme="dark"] .community-desc-inner svg { color: var(--dc-accent); }
   .community-desc-inner strong { color: var(--text-primary); font-weight: 600; }
 
-  /* LEGAL DISCLAIMER */
+  /* LEGAL DISCLAIMER — lives inside the .input-area card. It used to be a
+     docked footer bar of its own, which is where the fill and the rule came
+     from; against the card they just drew a stray divider between the partner
+     badges and this line, over a background that already matches. */
   .legal-disclaimer {
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-light);
     padding: 5px 16px 6px;
     flex-shrink: 0;
   }
@@ -3739,7 +3926,7 @@
   .icon-rail {
     width: 58px;
     background: var(--bg-sidebar);
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--sb-border);
     border-right-color: transparent;
     border-radius: var(--radius-lg) 0 0 var(--radius-lg);
     margin: 10px 0 10px 10px;
@@ -3760,7 +3947,7 @@
      (0.25s) has mostly finished, so the rail doesn't round off early
      while the still-shrinking sidebar is sitting flush against it. */
   .icon-rail:has(+ .sidebar.collapsed) {
-    border-right-color: rgba(255,255,255,0.06);
+    border-right-color: var(--sb-border);
     border-radius: var(--radius-lg);
     transition: border-radius 0.15s ease 0.2s, border-right-color 0.15s ease 0.2s;
   }
@@ -3769,15 +3956,15 @@
     width: 40px; height: 40px;
     border-radius: 12px;
     border: none; background: transparent;
-    color: rgba(255,255,255,0.42);
+    color: var(--sb-text-dim);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     position: relative;
     transition: all 0.15s;
     flex-shrink: 0;
   }
-  .rail-btn:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.07); }
-  .rail-btn.active { color: #fff; background: rgba(255,255,255,0.12); }
+  .rail-btn:hover { color: var(--sb-text-strong); background: var(--sb-hover-bg); }
+  .rail-btn.active { color: var(--sb-text-strong); background: rgba(255,255,255,0.16); }
   .rail-btn.active::before {
     content: '';
     position: absolute; left: -9px; top: 10px; bottom: 10px;
@@ -3793,6 +3980,7 @@
   }
   .rail-dot.ok { background: #22C55E; box-shadow: 0 0 0 4px rgba(34,197,94,0.15); }
   .rail-dot.err { background: #EF4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.15); }
+  .rail-dot.checking { background: #F59E0B; box-shadow: 0 0 0 4px rgba(245,158,11,0.15); animation: pulse 1s infinite; }
   @media (max-width: 640px) { .icon-rail { display: none; } }
 
   /* ── MOBILE SIDEBAR TRIGGERS — stand in for the icon rail, which is
@@ -3848,7 +4036,7 @@
     border-radius: 7px;
     border: none;
     background: transparent;
-    color: rgba(255,255,255,0.35);
+    color: var(--sb-text-dim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3856,7 +4044,7 @@
     flex-shrink: 0;
     transition: all 0.15s;
   }
-  .sidebar-collapse-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+  .sidebar-collapse-btn:hover { background: var(--sb-hover-bg); color: var(--sb-text-strong); }
   @media (max-width: 640px) { .sidebar-collapse-btn { display: none; } }
 
   /* ── SEGMENTED TABS (Chats / Sources) ────────────────────────────── */

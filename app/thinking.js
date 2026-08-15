@@ -95,7 +95,7 @@ async function sendMessage() {
   if (!ensureModelSelected()) return;
 
   input.value = '';
-  input.style.height = 'auto';
+  syncComposer();   // collapse back to the one-row layout and reset the height
   _userCancelled = false;
   _streamAbort = new AbortController();
   setSendMode(true);   // button becomes a Stop button
