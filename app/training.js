@@ -17,8 +17,18 @@ const TRAINING_MAX_FILE_BYTES = 2 * 1024 * 1024;   // 2 MB per file
 const TRAINING_MAX_TOTAL_BYTES = 8 * 1024 * 1024;  // 8 MB total
 const TRAINING_TEXT_EXT = ['txt','md','markdown','json','csv','log'];
 const TRAINING_PDF_EXT  = ['pdf'];
-const TRAINING_DOCX_EXT = ['docx','doc'];
+const TRAINING_DOCX_EXT = ['docx'];
 const TRAINING_ALLOWED_EXT = [...TRAINING_TEXT_EXT, ...TRAINING_PDF_EXT, ...TRAINING_DOCX_EXT];
+
+// Word-processor formats mammoth genuinely cannot read. `.doc` used to sit in
+// TRAINING_DOCX_EXT, which meant the app accepted the file, handed it to
+// mammoth, and surfaced mammoth's raw failure — "Can't find end of central
+// directory : is this a zip file ?" — in a toast. A .docx is a zip of XML; a
+// legacy .doc is an OLE compound binary, and the others here are their own
+// formats again. None of them are readable, but all of them are one Save As
+// away from being readable, so they get told that rather than being lumped in
+// with .exe under "unsupported type".
+const TRAINING_CONVERTIBLE_EXT = ['doc','rtf','odt','pages'];
 const TRAINING_EXTRACTED_CAP = 200 * 1024; // cap extracted text per file at ~200 KB to protect context window
 
 async function extractPdfText(file) {
@@ -62,6 +72,10 @@ async function handleTrainingFiles(fileList) {
 
   for (const file of files) {
     const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (TRAINING_CONVERTIBLE_EXT.includes(ext)) {
+      skipped.push(`${file.name} (.${ext} can't be read — open it and "Save As" .docx or .pdf)`);
+      continue;
+    }
     if (!TRAINING_ALLOWED_EXT.includes(ext)) { skipped.push(`${file.name} (unsupported type)`); continue; }
     if (file.size > TRAINING_MAX_FILE_BYTES) { skipped.push(`${file.name} (too large, max 2 MB)`); continue; }
     const totalSoFar = draft.reduce((n, f) => n + (f.size || 0), 0);
@@ -77,8 +91,18 @@ async function handleTrainingFiles(fileList) {
       draft.push({ name: file.name, size: file.size, content, chunks, addedAt: Date.now() });
       added++;
     } catch (err) {
+      // The real error goes to the console for whoever is debugging; the toast
+      // gets something a student can act on. Library errors are written for
+      // library authors — mammoth's way of saying "this is not a .docx" is to
+      // complain about a missing zip central directory, which helps nobody
+      // standing in a barangay hall with a file that won't upload.
       console.error('Training extract error:', err);
-      skipped.push(`${file.name} (${err.message || 'parse error'})`);
+      const why = TRAINING_PDF_EXT.includes(ext)
+        ? 'could not be read — it may be damaged or password-protected'
+        : TRAINING_DOCX_EXT.includes(ext)
+          ? 'could not be read — it may be damaged, or not really a .docx'
+          : 'could not be read';
+      skipped.push(`${file.name} (${why})`);
     }
   }
   renderTrainingFilesList();

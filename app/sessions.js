@@ -131,9 +131,10 @@ function renderSessionMessages(session) {
       // conversation shows the same record of work the student watched live.
       attachTrace(bubble, msg.trace);
       if (wasCancelled) bubble.appendChild(cancelledNoteEl());
-      applyCitationChips(bubble, msg.sources);
-      const srcEl = buildSourcesEl(msg.sources);
-      if (srcEl) bubble.appendChild(srcEl);
+      // Knowledge chips + source strips + the prompt inspector, in the same order
+      // the live turn built them, so a reopened conversation is indistinguishable
+      // from the one the student watched.
+      attachProvenance(bubble, msg);
       if (idx === lastAssistantIdx) {
         const fuEl = buildFollowUpsEl(msg.followUps);
         if (fuEl) bubble.appendChild(fuEl);

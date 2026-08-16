@@ -1154,6 +1154,26 @@
   }
   .thinking-step.step-done { color: var(--text-secondary); }
   .thinking-step.step-error { color: var(--danger); }
+
+  /* Retrieved chunks of a single file: indented under the row naming that file,
+     with a quiet tick instead of a source dot. They are parts of one thing, and
+     giving each the same marker a whole source gets is what made three chunks of
+     one PDF read as three documents. */
+  .thinking-step.kind-chunk {
+    min-height: 22px;
+    padding-left: 22px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .chunk-tick {
+    display: block;
+    width: 7px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--border);
+  }
+  .thinking-step.kind-chunk .step-meta { color: var(--text-muted); }
   .step-text {
     min-width: 0;
     overflow: hidden;
@@ -2010,6 +2030,267 @@
     color: var(--text-muted);
     font-family: var(--font-mono);
     font-size: 10.5px;
+  }
+
+  /* ── KNOWLEDGE SOURCES (local retrieval) ───────────────────────────
+     Same collapse mechanics as the web strip, but each row carries the
+     retrieval score and the chunk text — a web citation can only say where
+     an answer came from, while this can also say how strongly it matched. */
+  .kb-source-item {
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .kb-source-item + .kb-source-item { border-top: 1px solid var(--border); }
+  .kb-source-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .kb-source-marker {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--dc-accent);
+    background: color-mix(in srgb, var(--dc-accent) 14%, transparent);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .kb-score {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .kb-score-bar {
+    width: 34px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .kb-score-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--dc-accent);
+  }
+  .kb-score-num {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    min-width: 24px;
+  }
+  .kb-source-text {
+    margin-top: 5px;
+    margin-left: 24px;
+    max-height: 74px;
+    overflow-y: auto;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  /* The web chip shows a hostname; this one shows a filename, which runs longer
+     and would otherwise push the paragraph it sits in around. */
+  .cite-chip.kb-chip { max-width: 150px; }
+  .cite-chip.kb-chip span:not(.kb-chip-n) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kb-chip-n {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--dc-accent);
+  }
+
+  /* ── PROMPT INSPECTOR ──────────────────────────────────────────────
+     The literal bytes sent to the model. Monospace and unstyled on purpose —
+     this panel's whole value is that it isn't a rendering of the prompt. */
+  .prompt-inspector { margin-top: 8px; }
+  .prompt-toggle-icon {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+  .prompt-toggle-meta {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+  .prompt-inner {
+    margin-top: 6px;
+    border-radius: 10px;
+    background: var(--border-light);
+    box-shadow: inset 0 0 0 1px var(--border);
+    overflow: hidden;
+  }
+  [data-theme="dark"] .prompt-inner { background: rgba(255,255,255,0.04); }
+  /* ── Composition view ──────────────────────────────────────────────
+     The part of the panel a beginner reads: a sentence, a bar, and one row
+     per contributor naming the setting that produced it. */
+  .prompt-breakdown { padding: 11px 12px 12px; }
+  .prompt-lede {
+    margin: 0 0 10px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .prompt-lede b { color: var(--text-primary); font-weight: 700; }
+  .prompt-bar {
+    display: flex;
+    height: 9px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .prompt-bar > span { display: block; height: 100%; }
+  .prompt-bar > span + span { box-shadow: inset 1px 0 0 var(--bg-panel); }
+  .prompt-parts { margin-top: 10px; }
+  /* Two lines per part: name and size on the first, provenance on the second.
+     The wrap has to be explicit — .prompt-part-src claims a full basis to force
+     itself onto its own row, which without flex-wrap would instead squeeze the
+     label into a two-word column. */
+  .prompt-part {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    padding: 5px 0;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .prompt-part + .prompt-part { border-top: 1px solid var(--border); }
+  .prompt-part-dot {
+    flex-shrink: 0;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    transform: translateY(-1px);
+  }
+  .prompt-part-label {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .prompt-part-size {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .prompt-part-pct { margin-left: 6px; color: var(--text-muted); }
+  /* The provenance line wraps under the label on its own row. */
+  .prompt-part-src {
+    flex-basis: 100%;
+    margin-left: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .prompt-note {
+    margin: 11px 0 0;
+    padding-top: 9px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  /* ── Raw text, behind its own disclosure ───────────────────────────*/
+  .prompt-raw-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+  }
+  .prompt-raw-toggle:hover { color: var(--text-primary); }
+  .prompt-raw-toggle .src-toggle-chevron {
+    display: flex;
+    transform: rotate(-90deg);
+    transition: transform 0.2s;
+  }
+  .prompt-raw-toggle.open .src-toggle-chevron { transform: rotate(0deg); }
+  .prompt-raw-body.hidden { display: none; }
+  .prompt-raw-body { border-top: 1px solid var(--border); }
+
+  .prompt-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .prompt-head-cfg { flex: 1; display: flex; gap: 4px; flex-wrap: wrap; }
+  .prompt-head-cfg code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .prompt-copy-btn {
+    flex-shrink: 0;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .prompt-copy-btn:hover { color: var(--text-primary); }
+  .prompt-copy-btn.copied { color: var(--dc-green); border-color: var(--dc-green); }
+  .prompt-msg + .prompt-msg { border-top: 1px solid var(--border); }
+  .prompt-msg-role {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .prompt-msg.role-system .prompt-msg-role { color: var(--dc-accent); }
+  .prompt-msg-len {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+  }
+  .prompt-msg-body {
+    margin: 0;
+    padding: 0 10px 10px;
+    max-height: 260px;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   /* ── FOLLOW-UPS ────────────────────────────────────────────────────

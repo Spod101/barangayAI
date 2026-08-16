@@ -12,10 +12,14 @@ Built for DEVCON camps and barangay-level digital literacy: open one HTML file, 
 - **Conversation history** — multiple sessions, saved durably in your browser via SQLite (sql.js + IndexedDB). Your chats never leave your device.
 - **Filipino language support** — reply in **English, Filipino (Tagalog), Taglish, Bisaya, Hiligaynon, or Ilocano**, with grammar rules tuned to keep responses natural and free of Indonesian/Malay contamination.
 - **Customizable persona** — name your AI, pick a tone (friendly, formal, teacher, strict), or write your own system prompt. There's even an AI-assisted prompt expander.
-- **Teach it your docs** — upload `.txt`, `.md`, `.json`, `.csv`, `.log`, `.pdf`, or `.docx` files as knowledge the AI can draw on. Ships pre-loaded with the DEVCON 17 brand kit so answers are grounded from the first run (removable like any other source).
+- **Ground it on your docs** — upload `.txt`, `.md`, `.json`, `.csv`, `.log`, `.pdf`, or `.docx` files as knowledge the AI can draw on. Ships pre-loaded with the DEVCON 17 brand kit so answers are grounded from the first run (removable like any other source).
+- **Shows its receipts** — every answer can show exactly which chunk of which of your files it used, the similarity score that earned each one its place in the prompt, and the **literal prompt that was sent to the model**. Retrieval is a mechanism you can inspect and tune, not a black box.
+- **Works with the internet unplugged** — libraries and fonts are vendored, and a service worker precaches the whole app on first visit. After that the only thing that has to be reachable is your model, which is on your own machine.
 - **Web search** — optional live web results via [Tavily](https://tavily.com) (bring your own API key).
 - **Onboarding flow + Camp Guidebook** — a friendly first-run experience and an in-app guide.
 - **Dark mode**, markdown rendering, streaming responses, context-usage stats, and a collapsible sidebar.
+
+> **On "training":** nothing is fine-tuned. Your files are chunked, and the chunks most relevant to each question are retrieved and pasted into the prompt (classic TF-IDF, no embedding model). That's retrieval-augmented generation — the model is *grounded* on your documents, not trained on them. The Sources panel under each answer shows precisely what got pulled in.
 
 ---
 
@@ -154,6 +158,7 @@ barangayAI/
 ├── start-ollama.sh     # same, for macOS / Linux
 ├── index.html          # markup only
 ├── styles.css          # all CSS
+├── sw.js               # service worker — precaches the app so it opens offline
 ├── my-ai.json          # (optional) your published AI — created by Settings → Publish
 ├── vercel.json         # routes /api/* to the model proxy when deployed
 ├── api/
@@ -171,6 +176,7 @@ barangayAI/
 │   └── init.js         # welcome screen, chat actions, app bootstrap (window 'load')
 ├── db.js               # SQLite persistence layer (sql.js + IndexedDB)
 ├── rag.js              # local knowledge retrieval — chunking + TF-IDF similarity, no embedding model
+├── vendor/             # sql.js, pdf.js, mammoth.js, fonts — committed, not CDN (see vendor/README.md)
 ├── assets/
 │   ├── logos/          # vendor + brand logos shown in the model picker and welcome screen
 │   └── DEVCON-17-Brand-Kit-Aug-6-2026.md   # seeded as the default Source on first run (app/training.js)
@@ -185,19 +191,28 @@ The seed only ever applies to a library that is empty or still holds the untouch
 
 No build step. No framework. No bundler. Just more files instead of one — open any of them, edit, refresh. Script tags load in dependency order (`config.js` first, `init.js` last); if you add a file, add its `<script>` tag in `index.html` in the right spot.
 
-### External libraries (loaded from CDN)
+### External libraries (vendored, not fetched)
 
 - [sql.js](https://sql.js.org) — SQLite compiled to WASM, for chat persistence
 - [pdf.js](https://mozilla.github.io/pdf.js/) — extracting text from uploaded PDFs
 - [mammoth.js](https://github.com/mwilliamson/mammoth.js) — extracting text from `.docx` files
+- Plus Jakarta Sans + JetBrains Mono — the interface fonts
 
-An internet connection is needed the first time to fetch these (and for web search / fonts). The AI model itself runs entirely locally.
+All of these live in [`vendor/`](vendor/) and are served from the same origin as the app. Nothing is fetched from a CDN, so the app needs **no internet at all** — not even on the first run. See [`vendor/README.md`](vendor/README.md) for versions, licenses, and how to update one.
+
+### Offline
+
+[`sw.js`](sw.js) precaches the app shell on the first visit. After that you can pull the network cable and the page still opens, loads its fonts, restores your conversations, and talks to Ollama on `127.0.0.1`.
+
+Two caveats: a service worker needs a secure context, so this only kicks in on `localhost` or `https://` — the app still works without it, just not offline. And **web search** obviously needs the internet.
+
+When you change an app file, bump `CACHE_VERSION` in `sw.js` so returning users get your version instead of the cached one.
 
 ---
 
 ## Privacy
 
-Everything stays on your device. Conversations are stored in your browser's IndexedDB, and prompts go only to your local model. The only network calls leave your machine if you explicitly enable **web search** (to Tavily) or when CDN libraries and Google Fonts load.
+Everything stays on your device. Conversations are stored in your browser's IndexedDB, and prompts go only to your local model. The one network call that can leave your machine is **web search**, and only if you explicitly enable it and add a Tavily key.
 
 ---
 

@@ -75,8 +75,30 @@ function cosineSimSparse(vecA, vecB) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// Flatten training files into the { file, text, index, total } items the scorer
+// takes. `index`/`total` are the chunk's position inside its own file — carried
+// so a citation can say "chunk 12 of 47 of handbook.md" instead of quoting an
+// anonymous fragment, which is the difference between a source the student can
+// go and check and one they have to take on faith.
+function buildChunkIndex(files) {
+  const items = [];
+  for (const f of (files || [])) {
+    const chunks = (f.chunks && f.chunks.length) ? f.chunks : chunkText(f.content);
+    chunks.forEach((text, i) => {
+      items.push({ file: f.name, text, index: i + 1, total: chunks.length });
+    });
+  }
+  return items;
+}
+
 // Score every { file, text } chunk against `query` and return the top-K,
 // each augmented with a `score` field, sorted highest first.
+//
+// Chunks that score zero share no meaningful term with the question, so they are
+// dropped rather than padded out to K. Passing them along would spend context on
+// text the retriever itself rated irrelevant — costly on the small models this
+// app targets — and would put a "source" under the answer that the answer did
+// not come from. An empty result is a real, honest outcome: nothing matched.
 function retrieveTopChunks(query, chunkItems, topK = RAG_TOP_K) {
   if (!chunkItems || !chunkItems.length) return [];
   const idf = computeIdf(chunkItems.map(c => tokenize(c.text)));
@@ -86,10 +108,11 @@ function retrieveTopChunks(query, chunkItems, topK = RAG_TOP_K) {
     score: cosineSimSparse(queryVec, tfidfVector(tokenize(c.text), idf))
   }));
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, Math.min(topK, scored.length));
+  return scored.filter(c => c.score > 0).slice(0, Math.min(topK, scored.length));
 }
 
 window.BarangayRAG = {
   chunkText,
+  buildChunkIndex,
   retrieveTopChunks,
 };

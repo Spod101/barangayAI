@@ -187,9 +187,32 @@ async function sendMessage() {
     ? `${_basePrompt}${_focusRule}${_languageRule}\n\n## Your Knowledge & Abilities\n${_runtimeKnowledge}`
     : `${_basePrompt}${_focusRule}${_languageRule}`;
 
+  // ── Prompt breakdown ────────────────────────────────────────────────
+  // Recorded as the prompt is assembled, so the inspector can explain a 7,000
+  // character prompt as a handful of labelled parts instead of a wall of text.
+  // Each part says where it came from in plain language, because the useful
+  // question a beginner has is not "what does this say" but "which switch of
+  // mine put it there".
+  const _promptParts = [];
+  // Takes the text itself, or a character count when the text is spread across
+  // several messages and there is nothing to hand over as one string.
+  const _part = (label, text, source) => {
+    const chars = (typeof text === 'number') ? text : (text || '').length;
+    if (chars > 0) _promptParts.push({ label, chars, source });
+  };
+  _part(`Who ${_runtimeName} is`, _basePrompt,
+    _runtimeTone ? 'your custom prompt — Settings › Personalize' : 'the built-in default personality');
+  _part('Answer rules', _focusRule, 'built in — keeps replies short and on-topic');
+  _part(`Reply language: ${_languageChoice.charAt(0).toUpperCase() + _languageChoice.slice(1)}`,
+    _languageRule, 'Settings › Personalize › Reply language');
+  _part('Extra knowledge you wrote', _runtimeKnowledge, 'Settings › Personalize › Knowledge');
+
   const _trainingFiles = Array.isArray(window._TRAINING_FILES_ACTIVE) ? window._TRAINING_FILES_ACTIVE : [];
   const _trainingNotes = window._TRAINING_NOTES_ACTIVE || '';
   let _retrievedCount = 0, _totalChunkCount = 0;
+  // What retrieval actually pulled, kept for the citation strip under the answer
+  // and stored with the message so reopening the chat shows the same provenance.
+  let _kbSources = [];
   const _tKb = Date.now();
   if (_trainingFiles.length || _trainingNotes) {
     updateThinkingStep('files', 'active', 'Searching your knowledge base');
@@ -199,21 +222,28 @@ async function sendMessage() {
     // Retrieval: score every chunk against the user's message via TF-IDF +
     // cosine similarity (plain JS, no embedding model/network call) and keep
     // only the top-K most relevant, instead of dumping whole files.
-    const allChunks = [];
-    for (const f of _trainingFiles) {
-      const fileChunks = (f.chunks && f.chunks.length) ? f.chunks : window.BarangayRAG.chunkText(f.content);
-      for (const chunkStr of fileChunks) allChunks.push({ file: f.name, text: chunkStr });
-    }
+    const allChunks = window.BarangayRAG.buildChunkIndex(_trainingFiles);
     _totalChunkCount = allChunks.length;
 
     if (allChunks.length) {
       const top = window.BarangayRAG.retrieveTopChunks(text, allChunks);
       _retrievedCount = top.length;
-      for (const c of top) {
-        trainingBlock += `\n### From: ${c.file}\n${c.text}\n`;
+      _kbSources = top.map((c, i) => ({
+        n: i + 1, file: c.file, index: c.index, total: c.total,
+        score: c.score, text: c.text,
+      }));
+      // Numbered [K1], [K2]… so a claim can point at the chunk it came from.
+      // Distinct from the web results' [1] on purpose — both can appear in one
+      // answer, and the chip renderers must not fight over the same marker.
+      for (const c of _kbSources) {
+        trainingBlock += `\n### [K${c.n}] From: ${c.file} (chunk ${c.index} of ${c.total})\n${c.text}\n`;
       }
+      trainingBlock += '\nWhen a statement comes from the reference material above, cite it inline with its marker, e.g. [K1]. Do not cite material you did not use.';
     }
     systemPrompt += trainingBlock;
+    _part(_retrievedCount ? `${_retrievedCount} matching chunk${_retrievedCount !== 1 ? 's' : ''} of your sources` : 'Your source instructions',
+      trainingBlock,
+      _retrievedCount ? `pulled from ${_totalChunkCount} chunks across your uploaded files` : 'Sources panel');
   }
 
   if (_trainingFiles.length || _trainingNotes) {
@@ -222,7 +252,28 @@ async function sendMessage() {
     const chunkLabel = _totalChunkCount ? `${_retrievedCount}/${_totalChunkCount} chunks · ` : '';
     updateThinkingStep('files', 'done', 'Knowledge base',
       `${fileCount} file${fileCount !== 1 ? 's' : ''}${noteLabel} · ${chunkLabel}${fmtDur(Date.now() - _tKb)}`);
-    if (window._setEduCard) window._setEduCard('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>', `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded — retrieved the ${_retrievedCount} most relevant chunk${_retrievedCount !== 1 ? 's' : ''} (of ${_totalChunkCount}) via keyword matching for this question.`);
+    // Each retrieved chunk becomes its own trace row, with the score that earned
+    // it the slot — the trace already shows web results this way, and there is no
+    // reason the student's own documents should be the vaguer half of the record.
+    //
+    // When every chunk came out of the same file, the rows say "chunk 2 of 3"
+    // and name the file once above them. Repeating the filename on every row
+    // made three chunks of one PDF look like three separate documents.
+    const _kbFileNames = [...new Set(_kbSources.map(c => c.file))];
+    if (_kbFileNames.length === 1) {
+      addTraceRow('kb-file', 'srcfile', _kbFileNames[0],
+        { meta: `${_retrievedCount} of ${_kbSources[0].total} chunks used` });
+    }
+    _kbSources.forEach(c => addTraceRow(`kb-src-${c.n}`,
+      _kbFileNames.length === 1 ? 'chunk' : 'srcfile',
+      _kbFileNames.length === 1 ? `chunk ${c.index} of ${c.total}` : `${c.file} · chunk ${c.index}/${c.total}`,
+      { meta: `match ${c.score.toFixed(2)}` }));
+    if (_totalChunkCount && !_retrievedCount) {
+      addTraceRow('kb-none', 'more', 'nothing matched — answering without your sources');
+    }
+    if (window._setEduCard) window._setEduCard('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>', _retrievedCount
+      ? `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded — retrieved the ${_retrievedCount} most relevant chunk${_retrievedCount !== 1 ? 's' : ''} (of ${_totalChunkCount}) via keyword matching for this question.`
+      : `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded, but none of the ${_totalChunkCount} chunks share keywords with this question — the model is answering from its own knowledge.`);
   }
   // The size shown is what will actually be sent, estimated at the usual ~4
   // characters per token — the exact count only comes back with the response.
@@ -299,6 +350,34 @@ async function sendMessage() {
     payload.max_tokens = (typeof window._MAX_TOKENS_ACTIVE === 'number') ? window._MAX_TOKENS_ACTIVE : 1024;
   }
   applyThinkingSwitch(payload);
+
+  // Snapshot for the prompt inspector, taken AFTER applyThinkingSwitch because
+  // that appends /think or /no_think to the last user turn. The inspector
+  // promises the exact bytes that go on the wire, so it has to be the last word.
+  // The parts above cover the system prompt; these cover the user turn, in the
+  // order they are actually concatenated. Recorded last so the tail of the list
+  // ends on the student's own words — which is the point being made: of
+  // everything the model just read, this small piece was yours.
+  _part('Live web results', _webContext, 'web search was on for this message');
+  _part('Text added before your message', _prefix, 'Settings › Personalize › Prompt prefix');
+  _part('What you typed', text, 'the message box');
+  _part('Text added after your message', _suffix, 'Settings › Personalize › Prompt suffix');
+  if (payload.messages.length > 2) {
+    // Everything except the system prompt and the current question.
+    const historyChars = payload.messages.slice(1, -1)
+      .reduce((n, m) => n + (m.content || '').length, 0);
+    _part('Earlier messages in this chat', historyChars,
+      `${payload.messages.length - 2} previous message${payload.messages.length - 2 !== 1 ? 's' : ''} — the model has no memory, so they are re-sent every time`);
+  }
+
+  const _promptSnapshot = {
+    model: payload.model,
+    temperature: payload.temperature,
+    maxTokens: payload.max_tokens ?? null,
+    typedChars: text.length,
+    parts: _promptParts,
+    messages: payload.messages.map(m => ({ role: m.role, content: m.content })),
+  };
 
   const startTime = Date.now();
   const _endpointHost = hostOf(window.ACTIVE_BASE) || 'the model endpoint';
@@ -472,7 +551,6 @@ async function sendMessage() {
         streamRender(msgBody, fullText);
       }
       setStreamCaret(bubble, false);
-      applyCitationChips(bubble, _webSources);
     }
 
     // True when the model spent its whole turn on reasoning_content and never emitted
@@ -519,11 +597,16 @@ async function sendMessage() {
     // Show the cancellation note (after any partial answer the model managed to stream).
     if (cancelled) bubble.appendChild(cancelledNoteEl());
 
-    // Attach the web-search source links under the answer (when this turn used search).
-    if (!cancelled && fullText && _webSources.length) {
-      const srcEl = buildSourcesEl(_webSources);
-      if (srcEl) bubble.appendChild(srcEl);
-    }
+    // Provenance: which of the student's own chunks were used (with the score
+    // that earned each its place), which web results, and the literal prompt.
+    // The inspector attaches even when the turn produced nothing — "what did it
+    // actually send?" is most worth answering on the turns that went wrong.
+    const _provenance = {
+      sources: _webSources.length ? _webSources : undefined,
+      kbSources: _kbSources.length ? _kbSources : undefined,
+      prompt: _promptSnapshot,
+    };
+    attachProvenance(bubble, fullText ? _provenance : { prompt: _promptSnapshot });
 
     // Work is over: the header stops shimmering, states the total, and folds
     // away. `traceData` is what gets stored so reopening this chat replays it.
@@ -545,7 +628,9 @@ async function sendMessage() {
       if (session) session.displayMessages.push({ role: 'assistant', content: savedContent + CANCEL_MARK, time: aiTime, stats, cancelled: true, trace: traceData });
     } else if (savedContent) {
       messages.push({ role: 'assistant', content: savedContent });
-      const msgObj = { role: 'assistant', content: savedContent, time: aiTime, stats, sources: _webSources.length ? _webSources : undefined, trace: traceData };
+      const msgObj = { role: 'assistant', content: savedContent, time: aiTime, stats,
+        sources: _provenance.sources, kbSources: _provenance.kbSources,
+        prompt: _promptSnapshot, trace: traceData };
       if (session) session.displayMessages.push(msgObj);
       // Fire-and-forget: the answer is already rendered, so this resolves in
       // the background and appends underneath if it comes back in time.
@@ -620,7 +705,13 @@ async function sendMessage() {
       const fallbackBubble = appendAIMessage(aiText, okTrace);
       const stats = appendMsgMeta(document.getElementById('chat-area'), Date.now() - startTime, fallbackTokens, aiText, data.usage?.prompt_tokens ?? null);
       messages.push({ role: 'assistant', content: aiText });
-      const msgObj = { role: 'assistant', content: aiText, time: aiTime, stats, trace: okTrace };
+      const msgObj = { role: 'assistant', content: aiText, time: aiTime, stats, trace: okTrace,
+        sources: _webSources.length ? _webSources : undefined,
+        kbSources: _kbSources.length ? _kbSources : undefined,
+        prompt: _promptSnapshot };
+      // Same answer, same provenance — a turn that fell back to non-streaming is
+      // no less entitled to show its sources than one that streamed cleanly.
+      attachProvenance(fallbackBubble, msgObj);
       if (session) session.displayMessages.push(msgObj);
       attachFollowUps(fallbackBubble, msgObj, text, aiText);
       updateHistory(text);

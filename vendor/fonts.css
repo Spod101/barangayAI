@@ -1,0 +1,32 @@
+/* Vendored from Google Fonts — local copies so the app renders correctly with
+   no network. Plus Jakarta Sans & JetBrains Mono, both SIL Open Font License 1.1.
+
+   Two files, not fourteen. Both families are VARIABLE fonts: one file carries
+   every weight in a continuous range, so asking Google for `wght@300;400;500;600;700`
+   returns the same file five times under five URLs. The first cut of this file
+   did exactly that — five identical copies of Plus Jakarta Sans declared at fixed
+   weights, which wasted ~113 KB and, worse, told the browser that 800 did not
+   exist. Twenty-five rules in styles.css ask for 800, so the browser smeared the
+   700 face to fake it. Declaring the real range fixes those headings for free.
+
+   Latin subset only: `ñ` is U+00F1, inside U+0000-00FF, so Filipino, Bisaya,
+   Hiligaynon, and Ilocano are fully covered. The latin-ext subset (U+0100+) was
+   dropped — nothing in the app renders those characters. */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(fonts/plus-jakarta-sans-variable-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url(fonts/jetbrains-mono-variable-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

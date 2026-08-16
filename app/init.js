@@ -96,8 +96,23 @@ function applyOllamaCmdHints() {
   });
 }
 
+// ── OFFLINE SHELL ─────────────────────────────────────────────────────
+// Registers sw.js, which precaches every file the app needs to boot. Without
+// it the page is only as offline-capable as the browser's HTTP cache felt like
+// being that day — which is how a camp laptop with no signal ends up staring at
+// a blank screen. Registration is deliberately non-blocking and never fatal:
+// service workers need a secure context, so file:// and plain http on a LAN IP
+// simply don't get one, and the app must still work there.
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.log('[SW] offline shell ready'))
+    .catch(err => console.warn('[SW] not registered:', err.message));
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  registerServiceWorker();
   // The inline head script already resolved data-theme before first paint;
   // sync the in-memory flag + icons to match (default is dark).
   isDark = document.documentElement.getAttribute('data-theme') === 'dark';

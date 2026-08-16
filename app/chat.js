@@ -270,6 +270,346 @@ function applyCitationChips(bubble, sources) {
   }
 }
 
+// ── KNOWLEDGE SOURCES (local retrieval) ───────────────────────────────
+// Web results already get a source strip and inline chips. The student's own
+// uploaded documents got nothing — the answer just quietly contained their file
+// and they had to trust it. These render the same provenance for local
+// retrieval, plus the one thing a web citation can't show: the similarity score
+// that won the chunk its place in the prompt.
+//
+// That number is the teaching payload. "Retrieved 3 of 47 chunks, best match
+// 0.41" makes RAG a mechanism a student can reason about and tune, instead of
+// magic that either works or doesn't.
+
+// Bars are scaled against the best match in this answer, not against 1.0.
+// TF-IDF cosine scores are small in absolute terms — a genuinely good match
+// often lands near 0.3 — so an absolute bar would render every source as a
+// nearly empty sliver and teach the opposite of what's true. The raw number is
+// always printed beside it, so nothing is hidden by the scaling.
+function kbScoreBar(score, best) {
+  const pct = best > 0 ? Math.max(6, Math.round((score / best) * 100)) : 0;
+  return `<span class="kb-score" title="TF-IDF cosine similarity to your question">`
+    + `<span class="kb-score-bar"><span style="width:${pct}%"></span></span>`
+    + `<span class="kb-score-num">${score.toFixed(2)}</span></span>`;
+}
+
+function buildKnowledgeSourcesEl(kbSources) {
+  const list = (Array.isArray(kbSources) ? kbSources : []).filter(s => s && s.file);
+  if (!list.length) return null;
+  const best = Math.max(...list.map(s => s.score || 0));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'web-sources kb-sources';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'src-toggle';
+  btn.setAttribute('aria-expanded', 'false');
+  const files = [...new Set(list.map(s => s.file))];
+  const single = files.length === 1;
+  const stack = files.slice(0, 4).map((f, i) => `<img src="${sourceAvatar(f, i)}" alt="">`).join('');
+  // Name the file in the header when there is only one, so the rows below can
+  // stop repeating it. "5 chunks of resume.pdf" is one document; five rows each
+  // headed "resume.pdf" looks like five.
+  const label = single
+    ? `${list.length} chunk${list.length !== 1 ? 's' : ''} of ${escHtml(files[0])}`
+    : `${list.length} chunks from ${files.length} of your files`;
+  btn.innerHTML = `<span class="src-stack">${stack}</span>`
+    + `<span class="src-toggle-label">${label}</span>`
+    + `<span class="src-toggle-chevron">${CHEVRON_SVG}</span>`;
+  wrap.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'src-list';
+  const inner = document.createElement('div');
+  inner.className = 'src-list-inner';
+  list.forEach(s => {
+    const fileIdx = files.indexOf(s.file);
+    const row = document.createElement('div');
+    row.className = 'kb-source-item';
+    row.innerHTML = `
+      <div class="kb-source-head">
+        <span class="web-source-num"><img src="${sourceAvatar(s.file, fileIdx)}" alt=""></span>
+        <span class="kb-source-marker">K${s.n}</span>
+        <span class="web-source-title">${single ? `chunk ${s.index} of ${s.total}` : escHtml(s.file)}</span>
+        ${single ? '' : `<span class="web-source-host">chunk ${s.index}/${s.total}</span>`}
+        ${kbScoreBar(s.score || 0, best)}
+      </div>
+      <div class="kb-source-text"></div>`;
+    // textContent, not innerHTML — this is raw document text and may contain
+    // anything, including markup that would otherwise render into the page.
+    row.querySelector('.kb-source-text').textContent = s.text || '';
+    inner.appendChild(row);
+  });
+  panel.innerHTML = '<div class="src-list-clip"></div>';
+  panel.firstChild.appendChild(inner);
+  wrap.appendChild(panel);
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  return wrap;
+}
+
+// Swap the model's [K1] markers for a chip naming the file it read. Mirrors
+// applyCitationChips; the two patterns can't collide because [\d+] never
+// matches a marker that starts with K.
+function applyKnowledgeChips(bubble, kbSources) {
+  const list = (Array.isArray(kbSources) ? kbSources : []).filter(s => s && s.file);
+  if (!bubble || !list.length) return;
+
+  const targets = [];
+  const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, null);
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!/\[K\d+\]/.test(node.nodeValue)) continue;
+    if (node.parentElement && node.parentElement.closest('pre, code, a, .web-sources, .think-block, .process-trace')) continue;
+    targets.push(node);
+  }
+
+  for (const node of targets) {
+    const text = node.nodeValue;
+    const frag = document.createDocumentFragment();
+    const re = /\[K(\d+)\]/g;
+    let match, last = 0, replaced = 0;
+    while ((match = re.exec(text)) !== null) {
+      const src = list.find(s => s.n === parseInt(match[1], 10));
+      if (!src) continue;
+      if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)));
+      const chip = document.createElement('span');
+      chip.className = 'cite-chip kb-chip';
+      chip.title = `${src.file} — chunk ${src.index} of ${src.total} · match ${(src.score || 0).toFixed(2)}`;
+      // Marker + the filename minus its extension. A web chip carries a short
+      // hostname; a document name is long enough that the untrimmed version
+      // pushed the chip onto its own line and broke the sentence it sits in.
+      // The full name, chunk, and score all live in the tooltip and the strip.
+      chip.innerHTML = `<img src="${sourceAvatar(src.file, list.indexOf(src))}" alt="">`
+        + `<span class="kb-chip-n">K${src.n}</span>`
+        + `<span>${escHtml(src.file.replace(/\.[^.]+$/, ''))}</span>`;
+      frag.appendChild(chip);
+      last = match.index + match[0].length;
+      replaced++;
+    }
+    if (!replaced) continue;
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+}
+
+// ── PROMPT INSPECTOR ──────────────────────────────────────────────────
+// The app assembles a system prompt from six or seven sources — persona, scope
+// rule, language grammar, knowledge blurb, retrieved chunks, web results,
+// prefix/suffix — and then never shows it to anyone. A student watching the
+// trace can see that a prompt was built but not what it says, which leaves the
+// most important artifact in the whole pipeline invisible.
+//
+// This shows the literal bytes that went to the model. Not a summary of them.
+function promptCopyBtn(getText) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'prompt-copy-btn';
+  b.innerHTML = '<span>Copy</span>';
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const done = () => {
+      b.classList.add('copied');
+      b.querySelector('span').textContent = 'Copied';
+      setTimeout(() => { b.classList.remove('copied'); b.querySelector('span').textContent = 'Copy'; }, 1500);
+    };
+    const text = getText();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else fallbackCopy(text, done);
+  });
+  return b;
+}
+
+// Colours for the composition bar. Cycled by position so neighbouring segments
+// always differ; they carry no meaning beyond "this is a different part".
+const _PART_COLORS = ['#4F46E5', '#00A8E8', '#5FBF6B', '#FF8A3D', '#7C5CFF', '#E8547C', '#B8A05A'];
+
+function fmtChars(n) {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+// The composition view: one stacked bar plus a labelled row per part.
+//
+// This is the half of the inspector that actually teaches. The raw text answers
+// "what exactly was sent", which only helps someone who already knows what a
+// system prompt is. The question a beginner has is "I typed one sentence, why
+// does it say 1.9k tokens, and which of my settings did that?" — so every row
+// names the switch that produced it.
+function buildPromptBreakdownEl(prompt) {
+  const parts = Array.isArray(prompt.parts) ? prompt.parts.filter(p => p && p.chars > 0) : [];
+  if (!parts.length) return null;
+
+  const total = parts.reduce((n, p) => n + p.chars, 0);
+  const typed = prompt.typedChars || 0;
+  const wrap = document.createElement('div');
+  wrap.className = 'prompt-breakdown';
+
+  // Lead with the comparison, in words, before any number or chart.
+  const lede = document.createElement('p');
+  lede.className = 'prompt-lede';
+  lede.innerHTML = typed
+    ? `You typed <b>${fmtChars(typed)} characters</b>. The model received <b>${fmtChars(total)}</b>.`
+      + ` Everything else is what ${escHtml(window._AI_NAME_ACTIVE || AI_NAME)} added for you:`
+    : `The model received <b>${fmtChars(total)} characters</b>, made up of:`;
+  wrap.appendChild(lede);
+
+  const bar = document.createElement('div');
+  bar.className = 'prompt-bar';
+  parts.forEach((p, i) => {
+    const seg = document.createElement('span');
+    seg.style.width = `${(p.chars / total) * 100}%`;
+    seg.style.background = _PART_COLORS[i % _PART_COLORS.length];
+    seg.title = `${p.label} — ${p.chars} characters`;
+    bar.appendChild(seg);
+  });
+  wrap.appendChild(bar);
+
+  const list = document.createElement('div');
+  list.className = 'prompt-parts';
+  parts.forEach((p, i) => {
+    const pct = Math.round((p.chars / total) * 100);
+    const row = document.createElement('div');
+    row.className = 'prompt-part';
+    row.innerHTML = `
+      <span class="prompt-part-dot" style="background:${_PART_COLORS[i % _PART_COLORS.length]}"></span>
+      <span class="prompt-part-label"></span>
+      <span class="prompt-part-size">${fmtChars(p.chars)}<span class="prompt-part-pct">${pct < 1 ? '<1' : pct}%</span></span>
+      <span class="prompt-part-src"></span>`;
+    row.querySelector('.prompt-part-label').textContent = p.label;
+    row.querySelector('.prompt-part-src').textContent = p.source || '';
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+
+  const note = document.createElement('p');
+  note.className = 'prompt-note';
+  note.textContent = 'A model reads all of this every single time — it remembers nothing between messages. '
+    + 'Longer instructions cost speed, and on a small model they compete with your actual question.';
+  wrap.appendChild(note);
+
+  return wrap;
+}
+
+// `prompt` is { messages, model, temperature, maxTokens, parts, typedChars }.
+function buildPromptInspectorEl(prompt) {
+  // Owner-only. The system prompt carries the student's persona and instructions
+  // verbatim; my-ai.json already makes that public to anyone who opens the repo,
+  // but a panel under every answer is a different thing from a file in a repo,
+  // and it isn't the visitor's prompt to read. The teaching value is for whoever
+  // is building the AI, and they are never in visitor mode.
+  if (window.IS_VISITOR) return null;
+  const msgs = prompt && Array.isArray(prompt.messages) ? prompt.messages : [];
+  if (!msgs.length) return null;
+
+  const asText = () => msgs.map(m => `### ${m.role}\n${m.content}`).join('\n\n');
+  const chars = msgs.reduce((n, m) => n + (m.content || '').length, 0);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'prompt-inspector';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'src-toggle prompt-toggle';
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = `<span class="prompt-toggle-icon">`
+    + `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>`
+    + `<span class="src-toggle-label">What the model actually read</span>`
+    + `<span class="prompt-toggle-meta">~${fmtCount(Math.round(chars / 4))} tok</span>`
+    + `<span class="src-toggle-chevron">${CHEVRON_SVG}</span>`;
+  wrap.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'src-list';
+  const inner = document.createElement('div');
+  inner.className = 'prompt-inner';
+
+  // Plain-language breakdown first. The raw text is one more click away, so the
+  // panel opens on something a beginner can read rather than 7,000 characters
+  // of instructions they have no context for yet.
+  const breakdown = buildPromptBreakdownEl(prompt);
+  if (breakdown) inner.appendChild(breakdown);
+
+  const head = document.createElement('div');
+  head.className = 'prompt-head';
+  const bits = [prompt.model, `temp ${prompt.temperature}`,
+    prompt.maxTokens == null ? 'no token limit' : `max ${prompt.maxTokens} tok`];
+  head.innerHTML = `<span class="prompt-head-cfg">${bits.map(b => `<code>${escHtml(String(b))}</code>`).join('')}</span>`;
+  head.appendChild(promptCopyBtn(asText));
+  inner.appendChild(head);
+
+  // ── Raw text, collapsed by default ──────────────────────────────────
+  const rawWrap = document.createElement('div');
+  rawWrap.className = 'prompt-raw';
+  const rawBtn = document.createElement('button');
+  rawBtn.type = 'button';
+  rawBtn.className = 'prompt-raw-toggle';
+  rawBtn.setAttribute('aria-expanded', 'false');
+  rawBtn.innerHTML = `<span class="src-toggle-chevron">${CHEVRON_SVG}</span>`
+    + `<span>Show the exact text (${msgs.length} message${msgs.length !== 1 ? 's' : ''})</span>`;
+  rawWrap.appendChild(rawBtn);
+
+  const rawBody = document.createElement('div');
+  rawBody.className = 'prompt-raw-body hidden';
+  msgs.forEach(m => {
+    const block = document.createElement('div');
+    block.className = `prompt-msg role-${escHtml(m.role)}`;
+    block.innerHTML = `<div class="prompt-msg-role">${escHtml(m.role)}`
+      + `<span class="prompt-msg-len">${(m.content || '').length} chars</span></div>`;
+    const pre = document.createElement('pre');
+    pre.className = 'prompt-msg-body';
+    pre.textContent = m.content || '';   // never innerHTML — this is raw prompt text
+    block.appendChild(pre);
+    rawBody.appendChild(block);
+  });
+  rawWrap.appendChild(rawBody);
+  rawBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !rawBody.classList.toggle('hidden');
+    rawBtn.classList.toggle('open', open);
+    rawBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    rawBtn.querySelector('span:last-child').textContent = open
+      ? 'Hide the exact text'
+      : `Show the exact text (${msgs.length} message${msgs.length !== 1 ? 's' : ''})`;
+  });
+  inner.appendChild(rawWrap);
+
+  panel.innerHTML = '<div class="src-list-clip"></div>';
+  panel.firstChild.appendChild(inner);
+  wrap.appendChild(panel);
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  return wrap;
+}
+
+// The three provenance elements every answer can carry, attached in a fixed
+// order so a reloaded conversation looks exactly like the live one. Called from
+// sendMessage() after streaming and from renderSessionMessages() on reload.
+function attachProvenance(bubble, msg) {
+  if (!bubble || !msg) return;
+  applyKnowledgeChips(bubble, msg.kbSources);
+  applyCitationChips(bubble, msg.sources);
+  const kbEl = buildKnowledgeSourcesEl(msg.kbSources);
+  if (kbEl) bubble.appendChild(kbEl);
+  const webEl = buildSourcesEl(msg.sources);
+  if (webEl) bubble.appendChild(webEl);
+  const promptEl = buildPromptInspectorEl(msg.prompt);
+  if (promptEl) bubble.appendChild(promptEl);
+}
+
 // ── STREAMING RENDER ──────────────────────────────────────────────────
 // Text simply appears as it arrives, with a caret at the end — no entry
 // animation on the words. Anything that fades a word in has to be paced, and
@@ -597,6 +937,11 @@ const ICON_SPARKLE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="curr
 const ICON_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const ICON_SEARCH  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
 const ICON_GLOBE   = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
+// Retrieved chunks are pieces of a file on this machine, so they get a page
+// glyph. They used to share the globe with web results, which said "these came
+// from the internet" about the student's own uploaded document — and, repeated
+// once per chunk, made three pieces of one PDF read as three separate sources.
+const ICON_DOC     = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
 
 // Step icons: a spinner while a step runs, then a quiet check once it lands.
 // Completed steps deliberately don't go green — the trace is a record of work,
@@ -663,9 +1008,12 @@ function buildTraceRowEl(row, toneIdx) {
 
   const icon = row.kind === 'query'
     ? ICON_SEARCH
-    : row.kind === 'source'
-      ? `<span class="src-dot" style="background:${SOURCE_TONES[toneIdx % SOURCE_TONES.length]}">${ICON_GLOBE}</span>`
-      : (STEP_ICONS[row.status] || '');
+    : row.kind === 'chunk'
+      ? '<span class="chunk-tick"></span>'
+      : (row.kind === 'source' || row.kind === 'srcfile')
+        ? `<span class="src-dot" style="background:${SOURCE_TONES[toneIdx % SOURCE_TONES.length]}">`
+          + `${row.kind === 'srcfile' ? ICON_DOC : ICON_GLOBE}</span>`
+        : (STEP_ICONS[row.status] || '');
   el.innerHTML = `<span class="step-icon">${icon}</span><span class="step-text"></span>`;
   el.querySelector('.step-text').textContent = row.label || '';
   if (row.meta) {
@@ -682,7 +1030,9 @@ function paintTraceRow(row) {
   if (!list) return;
   const domId = `ts-${row.id}`;
   const existing = document.getElementById(domId);
-  const toneIdx = _trace ? _trace.rows.filter(r => r.kind === 'source').indexOf(row) : 0;
+  const toneIdx = _trace
+    ? _trace.rows.filter(r => r.kind === 'source' || r.kind === 'srcfile').indexOf(row)
+    : 0;
   const el = buildTraceRowEl(row, toneIdx < 0 ? 0 : toneIdx);
   el.id = domId;
   if (existing) {
@@ -829,7 +1179,7 @@ function buildSettledTraceEl(data) {
   const list = wrap.querySelector('.thinking-steps-list');
   let tone = 0;
   for (const row of data.rows) {
-    const el = buildTraceRowEl(row, row.kind === 'source' ? tone++ : 0);
+    const el = buildTraceRowEl(row, (row.kind === 'source' || row.kind === 'srcfile') ? tone++ : 0);
     el.style.animation = 'none';
     list.appendChild(el);
   }

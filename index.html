@@ -12,8 +12,7 @@
     if (saved !== 'light') document.documentElement.setAttribute('data-theme', 'dark');
   })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -1400,7 +1399,7 @@ git push</code></div></div>
              onclick="document.getElementById('training-file-input').click()"
              style="margin-top:8px; padding:18px; border:2px dashed var(--border); border-radius:10px; text-align:center; cursor:pointer; color:var(--text-muted); font-size:13px; transition:all 0.15s;">
           <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px;">Drop files here or click to browse</div>
-          <div style="font-size:11.5px;">Accepts .txt, .md, .json, .csv, .pdf, .doc, .docx &nbsp;·&nbsp; up to 2 MB each</div>
+          <div style="font-size:11.5px;">Accepts .txt, .md, .json, .csv, .log, .pdf, .docx &nbsp;·&nbsp; up to 2 MB each</div>
           <input id="training-file-input" type="file" multiple accept=".txt,.md,.markdown,.json,.csv,.log,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                  style="display:none;" onchange="handleTrainingFiles(this.files); this.value='';">
         </div>
@@ -1549,22 +1548,25 @@ git push</code></div></div>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+<!-- Third-party libraries are served from vendor/ instead of a CDN. sql.js is
+     load-bearing: no WASM means no database means no app, so a cold cache with
+     no internet used to leave a blank page. See vendor/README.md. -->
+<script src="vendor/pdf.min.mjs" type="module"></script>
 <script type="module">
   // pdf.js worker — required for PDF parsing
   if (window.pdfjsLib || window['pdfjs-dist/build/pdf']) {
     const lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
-    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+    lib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.mjs';
   } else {
     // Dynamic import fallback so the lib is reachable as window.pdfjsLib
-    import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs').then(mod => {
+    import('./vendor/pdf.min.mjs').then(mod => {
       window.pdfjsLib = mod;
-      mod.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+      mod.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.mjs';
     });
   }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js"></script>
+<script src="vendor/mammoth.browser.min.js"></script>
+<script src="vendor/sql-wasm.js"></script>
 <script src="db.js"></script>
 <script src="rag.js"></script>
 <script src="app/config.js"></script>
