@@ -500,15 +500,6 @@ function closeToolsDropdown() {
   if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
 }
 
-// Small dot on the "+" button whenever a source, deep thinking, or web search is active.
-function syncToolsIndicator() {
-  const btn = document.getElementById('tools-btn');
-  if (!btn) return;
-  const hasSources = (window._TRAINING_FILES_MASTER || []).length > 0;
-  const hasActive = hasSources || !!window._THINKING_ENABLED || !!window._WEB_SEARCH_ENABLED;
-  btn.classList.toggle('has-active', hasActive);
-}
-
 document.addEventListener('click', function(e) {
   const dd = document.getElementById('tools-dropdown');
   const btn = document.getElementById('tools-btn');
@@ -787,6 +778,11 @@ function renderConnState(state) {
   const label    = window.ACTIVE_MODEL || 'Ollama';
   const checking = state === 'checking';
   const ok       = state === 'online';
+
+  // Published so the thinking panel can tell a verified-live model from one we
+  // haven't reached yet — a "Process" trace next to an Offline chip reads as if
+  // work is happening when nothing is.
+  window._CONN_STATE = state;
 
   const chip = document.getElementById('header-status-chip');
   const text = document.getElementById('header-status-text');

@@ -343,7 +343,6 @@ function renderSourcesPanel() {
   if (total) total.textContent = master.length ? `${activeN}/${master.length}` : '';
   const segSrc = document.querySelector('.seg-tabs [data-segtab="sources"]');
   if (segSrc) segSrc.textContent = master.length ? `Sources · ${master.length}` : 'Sources';
-  syncToolsIndicator();
 }
 
 function showToast(msg, icon) {

@@ -165,6 +165,10 @@ function buildPublishConfig() {
       personas:         Array.isArray(s.personas) ? s.personas : [],
       active_persona:   s.active_persona || '',
       thinking_enabled: s.thinking_enabled === true,
+      // Carried so the owner's choice applies to their published site too.
+      // Absent from an older published file means false, which is the safe
+      // default: visitors don't spend a second call per message by accident.
+      followups_enabled: s.followups_enabled === true,
     },
     sources,
     // The live model is decided by the MODEL_NAME env var on Vercel and

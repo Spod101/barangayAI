@@ -105,7 +105,12 @@ function renderSessionMessages(session) {
     ? window._AI_NAME_ACTIVE.slice(0, 2).toUpperCase()
     : AI_AVATAR;
 
-  for (const msg of session.displayMessages) {
+  // Follow-ups only belong under the newest answer — re-showing them mid-thread
+  // would offer to ask questions the conversation has already moved past.
+  let lastAssistantIdx = -1;
+  session.displayMessages.forEach((m, i) => { if (m.role === 'assistant') lastAssistantIdx = i; });
+
+  session.displayMessages.forEach((msg, idx) => {
     if (msg.role === 'user') {
       const row = document.createElement('div');
       row.className = 'message-row user';
@@ -120,10 +125,19 @@ function renderSessionMessages(session) {
       row.className = 'message-row';
       const wasCancelled = isCancelledContent(msg.content);
       const bodyText = wasCancelled ? stripCancelMark(msg.content) : msg.content;
-      row.innerHTML = `<div class="avatar ai">${avatarLabel}</div><div class="bubble ai">${formatContent(bodyText)}</div>`;
-      if (wasCancelled) row.querySelector('.bubble').appendChild(cancelledNoteEl());
+      row.innerHTML = `<div class="avatar ai">${avatarLabel}</div><div class="bubble ai"><div class="msg-body">${formatContent(bodyText)}</div></div>`;
+      const bubble = row.querySelector('.bubble');
+      // The trace is part of the answer, not decoration around it — reopening a
+      // conversation shows the same record of work the student watched live.
+      attachTrace(bubble, msg.trace);
+      if (wasCancelled) bubble.appendChild(cancelledNoteEl());
+      applyCitationChips(bubble, msg.sources);
       const srcEl = buildSourcesEl(msg.sources);
-      if (srcEl) row.querySelector('.bubble').appendChild(srcEl);
+      if (srcEl) bubble.appendChild(srcEl);
+      if (idx === lastAssistantIdx) {
+        const fuEl = buildFollowUpsEl(msg.followUps);
+        if (fuEl) bubble.appendChild(fuEl);
+      }
       chatArea.appendChild(row);
       const t = document.createElement('div');
       t.className = 'message-time';
@@ -131,7 +145,7 @@ function renderSessionMessages(session) {
       chatArea.appendChild(t);
       if (msg.stats) renderMsgStats(chatArea, msg.stats);
     }
-  }
+  });
 
   document.getElementById('chat-title').textContent = session.title;
   scrollToBottom();

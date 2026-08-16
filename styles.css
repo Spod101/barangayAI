@@ -41,6 +41,14 @@
     --border-light: #E8EFF8;
     --user-bubble: var(--dc-blue);
     --ai-bubble: #FFFFFF;
+    /* Failure states used to be red end to end — surface, border, headings,
+       step numbers and buttons — which reads as alarm rather than as the
+       explanation it actually is. Red is now reserved for the one glyph that
+       has to say "something failed"; everything else sits on the normal
+       surface scale. The tints are derived so a theme swap carries them. */
+    --danger: #C2453F;
+    --danger-tint: color-mix(in srgb, var(--danger) 12%, transparent);
+    --danger-edge: color-mix(in srgb, var(--danger) 26%, transparent);
     --font-main: 'Plus Jakarta Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
     --radius-sm: 8px;
@@ -87,6 +95,15 @@
     --ai-bubble: #221C46;
     --dc-blue-light: color-mix(in srgb, var(--dc-blue) 25%, var(--bg-panel));
     --dc-accent-light: #241C4C;
+    /* Lifted well off the deep violet ground — the light-mode red goes muddy
+       against it, and the tints need more weight to stay visible. */
+    /* Lifted off the deep violet ground, but not washed out: the previous
+       #F08A85 sat at the same hue and simply lost saturation, which lands on
+       salmon and reads orange at glyph size. Saturation is what makes it read
+       as red here, not hue. */
+    --danger: #F0595B;
+    --danger-tint: color-mix(in srgb, var(--danger) 15%, transparent);
+    --danger-edge: color-mix(in srgb, var(--danger) 30%, transparent);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -994,88 +1011,162 @@
   }
   .message-time.user { text-align: right; }
 
-  /* THINKING INDICATOR */
+  /* THINKING INDICATOR — expandable agent trace.
+     The header is a quiet button; everything below it hangs off a single
+     hairline rail, so the trace reads as one thread of work rather than a
+     stack of boxes. Collapse uses the 1fr→0fr grid trick so the height
+     animates without measuring anything in JS. */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer-text { to { background-position: -200% 0; } }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .thinking-bubble {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
-    padding: 10px 14px;
-    min-width: 220px;
+    padding: 9px 13px 11px;
+    min-width: 268px;
   }
   .thinking-top-row {
     display: flex;
     align-items: center;
-    gap: 9px;
-    width: 100%;
+    gap: 8px;
+    width: calc(100% + 12px);
+    margin: -3px -6px 0;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     user-select: none;
+    transition: background 0.1s ease;
+  }
+  .thinking-top-row:hover { background: var(--border-light); }
+  .thinking-sparkle {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    display: flex;
   }
   .thinking-top-chevron {
-    font-size: 9px;
+    display: flex;
+    flex-shrink: 0;
     color: var(--text-muted);
-    margin-left: 4px;
-    transition: transform 0.2s;
-    flex-shrink: 0;
+    transform: rotate(180deg);   /* the trace starts expanded */
+    transition: transform 0.3s ease;
   }
-  .thinking-spinner {
-    width: 13px; height: 13px;
-    border-radius: 50%;
-    border: 2px solid var(--border-light);
-    border-top-color: var(--dc-blue);
-    animation: spin 0.75s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .thinking-top-row.collapsed .thinking-top-chevron { transform: rotate(0deg); }
+  /* Shimmer sweeps across the label instead of the old trailing "...", so the
+     header stays one stable width while the model works. */
   .thinking-label {
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-  .thinking-model-tag {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-left: auto;
+    font-size: 13px;
+    font-weight: 500;
     font-style: normal;
     white-space: nowrap;
+    background-image: linear-gradient(90deg,
+      var(--text-muted) 35%, var(--text-primary) 50%, var(--text-muted) 65%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer-text 1.4s linear infinite;
   }
+  /* Work is over — the sweep stops and the label states the total. */
+  .thinking-label.settled {
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--text-secondary);
+    animation: fade-in 350ms ease-out both;
+  }
+  .thinking-model-tag {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-left: auto;
+    padding-left: 10px;
+    font-style: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 45%;
+  }
+
   .thinking-collapsible {
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
     width: 100%;
+    transition: grid-template-rows 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+                opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   }
-  .thinking-collapsible.hidden { display: none; }
-  .thinking-steps-section {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border-light);
-    width: 100%;
+  .thinking-collapsible.hidden { grid-template-rows: 0fr; opacity: 0; }
+  .thinking-clip { overflow: hidden; }
+  /* The rail is positioned rather than measured — top/bottom insets let it
+     grow with the trace for free as steps stream in. */
+  .thinking-trace {
+    position: relative;
+    margin: 4px 0 0 5px;
+    padding-left: 16px;
   }
+  .thinking-trace::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -4px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .thinking-steps-section { margin-top: 8px; }
+  .thinking-steps-section.hidden { display: none; }
   .thinking-steps-label {
     font-size: 10px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    margin-bottom: 6px;
+    padding-left: 6px;
+    margin-bottom: 3px;
   }
   .thinking-steps-list {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    width: 100%;
+    gap: 1px;
   }
+  /* A row is icon → what happened → what it cost. The primary text truncates
+     so the measurement on the right is never the thing that gets cut off. */
   .thinking-step {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-size: 11.5px;
-    color: var(--text-secondary);
+    gap: 8px;
+    min-height: 26px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--text-primary);
+    font-weight: 500;
+    text-decoration: none;
+    animation: fade-up 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
-  .thinking-step.step-active { color: var(--text-primary); font-weight: 500; }
-  .thinking-step.step-done { color: var(--text-muted); }
+  .thinking-step.step-done { color: var(--text-secondary); }
+  .thinking-step.step-error { color: var(--danger); }
+  .step-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .step-meta {
+    flex-shrink: 0;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
   .step-icon {
     width: 14px;
     height: 14px;
@@ -1083,28 +1174,61 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 10px;
-    line-height: 1;
+    color: var(--text-muted);
   }
+  .thinking-step.step-error .step-icon { color: var(--danger); }
   .step-mini-spinner {
-    width: 10px; height: 10px;
+    width: 12px; height: 12px;
     border-radius: 50%;
-    border: 1.5px solid var(--border-light);
-    border-top-color: var(--dc-blue);
-    animation: spin 0.75s linear infinite;
+    border: 1.5px solid var(--border);
+    border-top-color: var(--text-secondary);
+    animation: spin 700ms linear infinite;
     display: inline-block;
   }
 
-  /* EDUCATIONAL CARD inside thinking bubble */
+  /* SEARCH ROWS — the query that was sent, then the pages it came back with.
+     Sources are real links: the trace is only worth showing if the student can
+     go read what the model was fed. */
+  .thinking-step.kind-query { color: var(--text-secondary); font-weight: 400; }
+  .thinking-step.kind-source {
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+  }
+  .thinking-step.kind-source:hover { background: var(--border-light); }
+  .thinking-step.kind-source:hover .step-text { text-decoration: underline; }
+  /* Three near-identical rows of blue link text are unscannable — a coloured
+     dot per source gives the eye something to sort on. */
+  .src-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .thinking-step.kind-more {
+    display: block;
+    padding-left: 28px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+    min-height: 0;
+  }
+
+  /* EDUCATIONAL CARD inside thinking bubble — kept, but demoted to an inset
+     panel on the rail so it supports the trace instead of competing with it. */
   .thinking-edu-card {
-    background: var(--dc-blue-light);
+    background: color-mix(in srgb, var(--dc-blue) 5%, transparent);
     border: 1px solid var(--border-light);
-    border-radius: 8px;
+    border-radius: 10px;
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
     transition: opacity 0.25s ease;
   }
+  [data-theme="dark"] .thinking-edu-card { background: rgba(255,255,255,0.035); }
   .thinking-edu-body {
     display: flex;
     gap: 8px;
@@ -1115,17 +1239,17 @@
     display: flex;
     flex-shrink: 0;
     margin-top: 1px;
-    color: var(--text-secondary);
+    color: var(--text-muted);
   }
   .thinking-edu-text {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-secondary);
-    line-height: 1.55;
+    line-height: 1.6;
     font-style: normal;
   }
   .thinking-edu-footer {
     border-top: 1px solid var(--border-light);
-    padding: 7px 11px 9px;
+    padding: 6px 7px 7px;
   }
   .thinking-edu-footer-label {
     display: block;
@@ -1134,77 +1258,94 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    margin-bottom: 6px;
+    margin: 0 0 3px 4px;
   }
   .thinking-edu-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 1px;
   }
   .thinking-edu-links a {
-    font-size: 10.5px;
-    color: var(--dc-blue);
+    font-size: 11.5px;
+    color: var(--text-secondary);
     text-decoration: none;
-    background: var(--bg-primary, #fff);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 3px 9px;
-    font-weight: 600;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-weight: 500;
+    transition: background 0.12s ease, color 0.12s ease;
   }
-  .thinking-edu-links a:hover { text-decoration: underline; }
+  .thinking-edu-links a:hover { background: var(--border-light); color: var(--text-primary); }
 
-  /* THINK BLOCK (model reasoning output) */
-  .think-block {
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 10px;
+  /* SETTLED TRACE — the same trace, once the answer exists. It moves inside the
+     bubble and folds shut, so the record of the work sits with the work rather
+     than vanishing the moment it becomes checkable. */
+  .process-trace {
+    width: 100%;
+    margin-bottom: 8px;
   }
+  .process-trace .thinking-top-row {
+    width: calc(100% + 12px);
+    margin: -2px -6px 0;
+  }
+  .process-trace .thinking-trace { margin-top: 2px; }
+  .process-trace:not(.live) .thinking-steps-section.hidden { display: block; }
+
+  /* THINK BLOCK — the model's own reasoning. Same language as the trace above
+     it: sparkle, shimmer while it runs, settled label, prose on the rail. */
+  .think-block { margin-bottom: 10px; }
   .think-block-header {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 8px 12px;
+    gap: 8px;
+    width: calc(100% + 12px);
+    margin: 0 -6px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: var(--dc-blue-light);
     user-select: none;
-    line-height: 1;
-    transition: background 0.15s;
+    transition: background 0.1s ease;
   }
   .think-block-header:hover { background: var(--border-light); }
-  .think-icon {
+  .think-header-label {
     font-size: 13px;
-    line-height: 1;
-    display: inline-block;
-    animation: spin 1.4s linear infinite;
+    font-weight: 500;
+    white-space: nowrap;
+    background-image: linear-gradient(90deg,
+      var(--text-muted) 35%, var(--text-primary) 50%, var(--text-muted) 65%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer-text 1.4s linear infinite;
   }
-  .think-icon.think-done { animation: none; }
+  .think-header-label.settled {
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--text-secondary);
+    animation: fade-in 350ms ease-out both;
+  }
   .think-block-chevron {
+    display: flex;
+    flex-shrink: 0;
     margin-left: auto;
-    font-size: 13px;
-    font-weight: 400;
-    display: inline-block;
-    transition: transform 0.2s;
     color: var(--text-muted);
-    line-height: 1;
+    transition: transform 0.3s ease;
   }
-  .think-block-chevron.open { transform: rotate(90deg); }
+  .think-block-header.open .think-block-chevron { transform: rotate(180deg); }
+  /* The rail is a border, not a pseudo-element: this box scrolls, and an
+     absolutely-positioned rail would scroll away with the text. */
   .think-block-body {
-    padding: 11px 13px;
+    margin: 4px 0 0 5px;
+    padding: 2px 0 2px 16px;
+    border-left: 1px solid var(--border);
     font-size: 11.5px;
     color: var(--text-secondary);
-    font-family: var(--font-mono);
     white-space: pre-wrap;
     max-height: 240px;
     overflow-y: auto;
-    line-height: 1.65;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-primary);
+    line-height: 1.7;
   }
-  [data-theme="dark"] .think-block-body { background: rgba(0,0,0,0.18); }
   .think-block-body.hidden { display: none; }
 
   /* MESSAGE METADATA */
@@ -1518,12 +1659,22 @@
     .send-btn.idle:hover,
     [data-theme="dark"] .send-btn.idle:hover { background: var(--border); transform: none; }
   }
-  /* Stop / cancel state while the model is generating — outranks .idle */
+  /* Stop / cancel state while the model is generating — outranks .idle.
+     A solid red block here shouts louder than anything else on screen for
+     something the user does routinely; the tinted chip still reads as stop
+     (same slot, same square glyph) without competing with the reply. */
   .send-btn.stop,
-  .send-btn.stop.idle { background: #DC2626; color: #fff; }
+  .send-btn.stop.idle {
+    background: var(--danger-tint);
+    color: var(--danger);
+    box-shadow: inset 0 0 0 1px var(--danger-edge);
+  }
   @media (hover: hover) {
     .send-btn.stop:hover,
-    [data-theme="dark"] .send-btn.stop:hover { background: #b91c1c; }
+    [data-theme="dark"] .send-btn.stop:hover {
+      background: color-mix(in srgb, var(--danger) 20%, transparent);
+      transform: none;
+    }
   }
   .cancelled-note {
     display: flex;
@@ -1660,17 +1811,6 @@
     background: var(--dc-accent-light);
     color: var(--dc-accent);
   }
-  .tools-dot {
-    position: absolute;
-    top: 3px; right: 3px;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--dc-blue);
-    border: 1.5px solid var(--bg-primary);
-    display: none;
-  }
-  .tools-btn.has-active .tools-dot { display: block; }
-
   .tools-dropdown {
     position: absolute;
     bottom: calc(100% + 8px);
@@ -1734,49 +1874,131 @@
     margin: 4px 2px 6px;
     background: var(--border);
   }
-  /* Web sources card — shown under answers that used web search */
-  .web-sources {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  /* ── STREAMED TEXT ─────────────────────────────────────────────────
+     Words carry no entry animation: text just appears as it arrives, with a
+     caret marking where it is up to. Anything that fades a word in has to be
+     paced, and the pacing is what read as slow and flickery.
+
+     Layout-neutral wrappers: the split into committed vs. still-arriving text
+     is a rendering concern, so it must not add a box that stops paragraph
+     margins collapsing across the seam. */
+  .stream-stable, .stream-tail { display: contents; }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
   }
-  .web-sources-head {
+  /* Deliberately not blinking: the caret is re-created on every repaint, so a
+     blink would restart each tick and freeze at one phase. Its movement across
+     the text is the liveness signal. */
+  .stream-caret {
+    display: inline-block;
+    width: 2px;
+    height: 0.85em;
+    margin-left: 2px;
+    vertical-align: -1px;
+    border-radius: 2px;
+    background: var(--text-primary);
+    opacity: 0.75;
+  }
+
+  /* ── INLINE CITATION CHIP ──────────────────────────────────────────
+     Replaces the model's bare "[1]" markers with the source it points at,
+     so a claim carries its provenance in place. */
+  .cite-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 17px;
+    margin: 0 2px 0 1px;
+    padding: 0 4px 0 3px;
+    border-radius: 5px;
+    background: var(--border-light);
+    box-shadow: inset 0 0 0 1px var(--border);
+    vertical-align: middle;
+    transform: translateY(-1px);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+    animation: pop-in 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .cite-chip:hover { background: var(--dc-blue-light); color: var(--dc-blue); }
+  .cite-chip img { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── SOURCES ROW + EXPANDABLE LIST ─────────────────────────────────
+     Collapsed to one line of stacked avatars; the full list opens in place. */
+  .web-sources { margin-top: 10px; }
+  .src-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 2px;
+    gap: 7px;
+    margin-left: -4px;
+    padding: 3px 6px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    transition: background 0.15s ease;
   }
+  .src-toggle:hover { background: var(--border-light); }
+  .src-stack { display: flex; flex-shrink: 0; }
+  .src-stack img {
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    box-shadow: 0 0 0 1.5px var(--ai-bubble);
+  }
+  .src-stack img + img { margin-left: -4px; }
+  .src-toggle-label { font-size: 12px; color: var(--text-secondary); }
+  .src-toggle-chevron {
+    display: flex;
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+  }
+  .src-toggle.open .src-toggle-chevron { transform: rotate(180deg); }
+
+  .src-list {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+                opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .src-list.open { grid-template-rows: 1fr; opacity: 1; }
+  .src-list-clip { overflow: hidden; }
+  .src-list-inner {
+    margin-top: 6px;
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--border-light);
+    box-shadow: inset 0 0 0 1px var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  [data-theme="dark"] .src-list-inner { background: rgba(255,255,255,0.04); }
   .web-source-link {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 8px;
-    border-radius: 8px;
+    padding: 5px 6px;
+    border-radius: 6px;
     text-decoration: none;
     color: var(--text-secondary);
-    font-size: 12.5px;
+    font-size: 12px;
     transition: background 0.12s, color 0.12s;
   }
-  .web-source-link:hover { background: var(--dc-blue-light); color: var(--dc-blue); }
-  [data-theme="dark"] .web-source-link:hover { background: var(--dc-accent-light); color: var(--dc-accent); }
+  .web-source-link:hover { background: var(--bg-panel); color: var(--text-primary); }
+  [data-theme="dark"] .web-source-link:hover { background: rgba(255,255,255,0.06); }
   .web-source-num {
     flex-shrink: 0;
-    width: 18px; height: 18px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 5px;
-    background: var(--dc-blue);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    overflow: hidden;
   }
+  .web-source-num img { width: 100%; height: 100%; display: block; }
   .web-source-title {
     flex: 1;
     overflow: hidden;
@@ -1786,8 +2008,44 @@
   .web-source-host {
     flex-shrink: 0;
     color: var(--text-muted);
-    font-size: 11px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
   }
+
+  /* ── FOLLOW-UPS ────────────────────────────────────────────────────
+     Generated after the answer lands; each row sends itself on click. */
+  .followups {
+    margin-top: 12px;
+    animation: fade-in 300ms ease-out both;
+  }
+  .followups-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 1px;
+  }
+  .followup-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: calc(100% + 12px);
+    margin: 0 -6px;
+    padding: 7px 6px;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    background: none;
+    border-radius: 7px;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-main);
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    transition: background 0.1s ease;
+    animation: fade-up 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .followup-item:hover { background: var(--border-light); }
+  .followup-item svg { flex-shrink: 0; color: var(--text-muted); }
 
   /* MODEL DROPDOWN PANEL (search-style picker) */
   .model-dropdown {
@@ -2337,17 +2595,25 @@
   .scroll-bottom-btn:hover { background: var(--dc-blue); color: white; border-color: var(--dc-blue); }
 
   /* ERROR */
+  /* ERROR CARD — an ordinary card that happens to carry a red glyph, rather
+     than a red card. The recovery steps are the *fix*, not the failure, so
+     they read in the normal ink scale and the primary action keeps the brand
+     blue: "Open the setup guide" is constructive, and dressing it as a
+     destructive button misreads what it does. */
   .error-bubble {
-    background: #FEF2F2;
-    border: 1px solid #FECACA;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: 14px 16px;
     font-size: 13px;
+    color: var(--text-secondary);
     margin: 4px 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-shadow: var(--shadow-card);
   }
+  .error-bubble > svg { color: var(--danger); }
   .error-bubble-top {
     display: flex;
     align-items: flex-start;
@@ -2355,36 +2621,39 @@
   }
   .error-bubble-icon {
     width: 32px; height: 32px;
-    background: #FEE2E2;
+    background: var(--danger-tint);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    color: #DC2626;
+    color: var(--danger);
+    box-shadow: inset 0 0 0 1px var(--danger-edge);
   }
   .error-bubble-title {
     font-size: 13.5px;
     font-weight: 700;
-    color: #991B1B;
+    color: var(--text-primary);
     margin-bottom: 3px;
     line-height: 1.3;
   }
   .error-bubble-desc {
     font-size: 12.5px;
-    color: #B91C1C;
+    color: var(--text-secondary);
     line-height: 1.6;
   }
   .error-bubble-steps {
-    background: #FEE2E2;
-    border-radius: 8px;
+    background: var(--border-light);
+    box-shadow: inset 0 0 0 1px var(--border);
+    border-radius: 10px;
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
+  [data-theme="dark"] .error-bubble-steps { background: rgba(255,255,255,0.035); }
   .error-bubble-steps-title {
     font-size: 10.5px;
     font-weight: 700;
-    color: #991B1B;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.6px;
     margin-bottom: 2px;
@@ -2394,14 +2663,15 @@
     align-items: flex-start;
     gap: 8px;
     font-size: 12px;
-    color: #7F1D1D;
+    color: var(--text-secondary);
     line-height: 1.5;
   }
   .error-step-num {
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: #DC2626;
-    color: white;
+    background: var(--bg-panel);
+    box-shadow: inset 0 0 0 1px var(--border);
+    color: var(--text-secondary);
     display: flex; align-items: center; justify-content: center;
     font-size: 9px; font-weight: 700;
     flex-shrink: 0; margin-top: 1px;
@@ -2409,24 +2679,27 @@
   .error-step code {
     font-family: var(--font-mono);
     font-size: 11px;
-    background: rgba(0,0,0,0.08);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    box-shadow: inset 0 0 0 1px var(--border);
     padding: 1px 5px;
     border-radius: 4px;
   }
+  [data-theme="dark"] .error-step code { background: rgba(0,0,0,0.28); }
   .error-bubble-dismiss {
     align-self: flex-end;
     background: none;
-    border: 1px solid #FECACA;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: 600;
-    color: #991B1B;
+    color: var(--text-secondary);
     cursor: pointer;
     font-family: var(--font-main);
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
   }
-  .error-bubble-dismiss:hover { background: #FEE2E2; }
+  .error-bubble-dismiss:hover { background: var(--border-light); color: var(--text-primary); }
   .error-bubble-actions {
     display: flex;
     align-items: center;
@@ -2437,9 +2710,9 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #DC2626;
-    border: 1px solid #DC2626;
-    border-radius: 6px;
+    background: var(--dc-blue);
+    border: 1px solid var(--dc-blue);
+    border-radius: 8px;
     padding: 6px 12px;
     font-size: 12px;
     font-weight: 700;
@@ -2448,17 +2721,9 @@
     font-family: var(--font-main);
     transition: background 0.15s, transform 0.05s;
   }
-  .error-bubble-cta:hover { background: #B91C1C; }
+  .error-bubble-cta:hover { background: var(--dc-blue-dark); border-color: var(--dc-blue-dark); }
   .error-bubble-cta:active { transform: translateY(1px); }
   .error-bubble-cta svg { flex-shrink: 0; }
-  [data-theme="dark"] .error-bubble { background: rgba(153,27,27,0.15); border-color: rgba(153,27,27,0.3); }
-  [data-theme="dark"] .error-bubble-icon { background: rgba(220,38,38,0.2); color: #FCA5A5; }
-  [data-theme="dark"] .error-bubble-title { color: #FCA5A5; }
-  [data-theme="dark"] .error-bubble-desc { color: #F87171; }
-  [data-theme="dark"] .error-bubble-steps { background: rgba(220,38,38,0.12); }
-  [data-theme="dark"] .error-bubble-steps-title { color: #FCA5A5; }
-  [data-theme="dark"] .error-step { color: #FCA5A5; }
-  [data-theme="dark"] .error-bubble-dismiss { border-color: rgba(220,38,38,0.3); color: #FCA5A5; }
   /* TRUST PILLS */
   .trust-pill {
     display: inline-flex;
@@ -3376,8 +3641,6 @@
   .guide-step-body a { color: var(--dc-blue); font-weight: 600; text-decoration: none; }
   .guide-step-body a:hover { text-decoration: underline; }
   [data-theme="dark"] .guide-step-body a { color: var(--dc-accent); }
-
-  [data-theme="dark"] .error-bubble { background: rgba(153,27,27,0.15); border-color: rgba(153,27,27,0.3); color: #FCA5A5; }
 
   /* LOGO TOOLTIP — Alibaba Cloud attribution */
   .logo-wrapper {

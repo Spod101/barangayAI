@@ -271,7 +271,6 @@
         <div class="tools-wrap" data-owner-only>
           <button class="tools-btn" id="tools-btn" onclick="toggleToolsDropdown()" title="Tools — sources, deep thinking, web search" aria-haspopup="true" aria-expanded="false">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span class="tools-dot" id="tools-dot"></span>
           </button>
           <div class="tools-dropdown" id="tools-dropdown">
             <div class="tools-section-label tools-item-model">Model</div>
@@ -1419,6 +1418,17 @@ git push</code></div></div>
         <span class="settings-hint">When on, the AI searches the web for your question and uses the top results as context for its answer. You can also flip this with the web search button beside Send.</span>
         <input class="settings-input" id="settings-tavily-key" type="password" placeholder="Tavily API key (tvly-…)" autocomplete="off" style="margin-top:10px;">
         <span class="settings-hint">Required for web search. Get a free key at <a href="https://app.tavily.com" target="_blank" rel="noopener" style="color:var(--dc-blue)">tavily.com</a> — the free tier covers ~1,000 searches/month. Stored locally on this device only.</span>
+      </div>
+
+      <hr class="settings-divider">
+
+      <!-- Follow-up suggestions -->
+      <div class="settings-field">
+        <div class="slider-head" style="align-items:center;">
+          <label class="settings-label">Follow-up Suggestions</label>
+          <button type="button" class="ep-toggle" id="settings-followups" onclick="toggleFollowUpsSetting(this)" aria-label="Toggle follow-up suggestions"></button>
+        </div>
+        <span class="settings-hint">After each answer, the AI suggests two questions you could ask next. Off by default because it costs one extra short request per reply — that's free on your own machine, but if you publish this AI, every visitor's message will spend it against your hosting quota too.</span>
       </div>
 
       <hr class="settings-divider">

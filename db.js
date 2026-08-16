@@ -63,10 +63,13 @@ function _createSchema() {
     content    TEXT    NOT NULL,
     time       TEXT,
     stats      TEXT,
+    trace      TEXT,
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
   )`);
   // Migration for DBs created before the `stats` column existed
   try { _db.run(`ALTER TABLE messages ADD COLUMN stats TEXT`); } catch (e) { /* already exists */ }
+  // Migration for DBs created before the `trace` column existed
+  try { _db.run(`ALTER TABLE messages ADD COLUMN trace TEXT`); } catch (e) { /* already exists */ }
   _db.run(`CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -161,8 +164,10 @@ function dbSaveSessions(sessions, currentSessionId) {
     ]);
     for (const m of (s.displayMessages || [])) {
       _db.run(
-        'INSERT INTO messages (session_id, role, content, time, stats) VALUES (?,?,?,?,?)',
-        [s.id, m.role, m.content, m.time || null, m.stats ? JSON.stringify(m.stats) : null]
+        'INSERT INTO messages (session_id, role, content, time, stats, trace) VALUES (?,?,?,?,?,?)',
+        [s.id, m.role, m.content, m.time || null,
+         m.stats ? JSON.stringify(m.stats) : null,
+         m.trace ? JSON.stringify(m.trace) : null]
       );
     }
   }
@@ -181,13 +186,14 @@ function dbLoadSessions() {
   const loaded = [];
   for (const [id, title, created] of sessRes[0].values) {
     const msgRes = _db.exec(
-      'SELECT role, content, time, stats FROM messages WHERE session_id = ? ORDER BY id ASC',
+      'SELECT role, content, time, stats, trace FROM messages WHERE session_id = ? ORDER BY id ASC',
       [id]
     );
     const displayMessages = msgRes.length
-      ? msgRes[0].values.map(([role, content, time, stats]) => {
+      ? msgRes[0].values.map(([role, content, time, stats, trace]) => {
           const m = { role, content, time: time || undefined };
           if (stats) { try { m.stats = JSON.parse(stats); } catch (e) { /* ignore */ } }
+          if (trace) { try { m.trace = JSON.parse(trace); } catch (e) { /* ignore */ } }
           return m;
         })
       : [];

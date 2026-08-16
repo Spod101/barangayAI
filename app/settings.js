@@ -49,6 +49,11 @@ function applySettings(s) {
   window._TAVILY_KEY = s.tavily_api_key || '';
   window._WEB_SEARCH_ENABLED = (s.web_search_enabled === true);
   window._THINKING_ENABLED = (s.thinking_enabled === true);
+  // Off unless explicitly switched on. Every answer would otherwise cost a
+  // second model call, and on a published AI that call is spent against the
+  // owner's free quota by visitors who never agreed to it. Opting in is the
+  // owner's call to make, so the default can't be the expensive one.
+  window._FOLLOWUPS_ENABLED = (s.followups_enabled === true);
   syncWebSearchUI();
   syncThinkingUI();
   const initials = name.slice(0, 2).toUpperCase();
@@ -175,6 +180,8 @@ function openSettings() {
   if (wsToggle) wsToggle.classList.toggle('on', s.web_search_enabled === true);
   const wsKey = document.getElementById('settings-tavily-key');
   if (wsKey) wsKey.value = s.tavily_api_key || '';
+  const fuToggle = document.getElementById('settings-followups');
+  if (fuToggle) fuToggle.classList.toggle('on', s.followups_enabled === true);
 
   // Training tab
   window._TRAINING_FILES_DRAFT = Array.isArray(s.training_files) ? s.training_files.slice() : [];
@@ -248,6 +255,8 @@ function resetSettingsForm() {
   if (wsToggle) wsToggle.classList.remove('on');
   const wsKey = document.getElementById('settings-tavily-key');
   if (wsKey) wsKey.value = '';
+  const fuToggle = document.getElementById('settings-followups');
+  if (fuToggle) fuToggle.classList.remove('on');
   window._TRAINING_FILES_DRAFT = [];
   renderTrainingFilesList();
   window._PERSONAS_DRAFT = [];
@@ -288,6 +297,7 @@ function applyAndSaveSettings() {
     personas:         (window._PERSONAS_DRAFT || []),
     active_persona:   (window._ACTIVE_PERSONA_DRAFT || ''),
     web_search_enabled: !!document.getElementById('settings-web-search')?.classList.contains('on'),
+    followups_enabled: !!document.getElementById('settings-followups')?.classList.contains('on'),
     thinking_enabled:   !!window._THINKING_ENABLED,
     tavily_api_key:   (document.getElementById('settings-tavily-key')?.value.trim() || ''),
   };
