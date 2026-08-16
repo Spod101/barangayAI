@@ -105,6 +105,17 @@ function lockVisitorUI() {
   renderPublishedCredit();
 }
 
+// The partner-pitch strip under the composer ("To be pitched to target
+// partners" + the AWS/Alibaba/Sui badges) is camp-internal material. It is
+// already owner-only, so visitor mode removes it — but a deployed fork that
+// hasn't published my-ai.json yet isn't in visitor mode, and would still show
+// it to the whole internet. Anything hosted, published or not, drops it.
+function hideOwnerPitchFooter() {
+  if (isLocalHost()) return;
+  const tip = document.getElementById('input-tip');
+  if (tip) tip.remove();
+}
+
 // The camp's whole claim is "free, private, no cloud" — and on a published
 // site that is FALSE: replies come from a hosted model through /api. Saying
 // so plainly is the difference between the demo proving the lesson and
@@ -180,6 +191,15 @@ function buildPublishConfig() {
 
 function exportPublishConfig() {
   const cfg = buildPublishConfig();
+  // The published site credits its builder by name. Shipping one credited to
+  // "a student" defeats the point, and the file is the last place to catch it
+  // — once it's committed, the byline is what the world sees.
+  if (!cfg.creator_name) {
+    showToast('Add your name in Settings → Personalize first — it gets credited on your published AI.');
+    const input = document.getElementById('settings-creator-name');
+    if (input) { input.focus(); input.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    return;
+  }
   const json = JSON.stringify(cfg, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -206,7 +226,7 @@ function updatePublishSummary() {
     ['Language', cfg.settings.reply_language],
     ['Personality', cfg.settings.ai_tone ? 'custom prompt' : 'default'],
     ['Sources', cfg.sources.length ? `${cfg.sources.length} file${cfg.sources.length === 1 ? '' : 's'}` : 'none'],
-    ['Your name', cfg.creator_name || '— (set it in Personalize)'],
+    ['Your name', cfg.creator_name || '⚠ required — set it in Personalize'],
   ];
   el.innerHTML = rows.map(([k, v]) =>
     `<div class="publish-row"><b>${escHtml(k)}</b><span>${escHtml(String(v))}</span></div>`).join('')
@@ -226,6 +246,7 @@ window.isVisitorMode          = isVisitorMode;
 window.isLocalHost            = isLocalHost;
 window.hydratePublishedSettings = hydratePublishedSettings;
 window.lockVisitorUI          = lockVisitorUI;
+window.hideOwnerPitchFooter   = hideOwnerPitchFooter;
 window.welcomeBriefText       = welcomeBriefText;
 window.exportPublishConfig    = exportPublishConfig;
 window.updatePublishSummary   = updatePublishSummary;

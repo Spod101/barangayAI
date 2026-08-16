@@ -312,7 +312,10 @@
         </button>
       </div>
     </div>
-    <div class="input-tip" data-owner-only>
+    <!-- Camp pitch material — owner-only, and stripped on ANY hosted copy by
+         hideOwnerPitchFooter() (app/publish.js), published or not. A visitor
+         gets the creator's credit line in its place. -->
+    <div class="input-tip" id="input-tip" data-owner-only>
       <span class="input-tip-label">To be pitched to target partners</span>
       <span class="input-tip-badges">
         <span class="tip-badge dc-brand-gradient">AWS Bedrock</span>
@@ -1009,19 +1012,28 @@ git push</code></div></div>
     <div class="modal-body">
       <div class="modal-mabuhay" style="color:var(--dc-blue);font-size:12px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px">Step 3 of 3 · Set up your AI</div>
       <p class="modal-text" style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:4px">Let's get it ready</p>
-      <p class="modal-text" style="margin-bottom:16px">Three quick things — name it, connect a model so it can reply, then make it yours. You can change any of these later.</p>
+      <p class="modal-text" style="margin-bottom:16px">Three quick things — name it and sign it, connect a model so it can reply, then make it yours. You can change any of these later.</p>
 
-      <!-- 1 · Name -->
+      <!-- 1 · Name it & sign it. Both required: the creator's name is what
+           gets credited on the published site, and an AI shipped as "built by
+           a student" is the one thing publishing shouldn't be allowed to do. -->
       <div class="onboard-setup-block">
-        <div class="onboard-setup-head"><span class="onboard-setup-num">1</span> Give it a name</div>
+        <div class="onboard-setup-head"><span class="onboard-setup-num">1</span> Name it &amp; sign it <span style="font-weight:500;color:var(--danger);text-transform:none;letter-spacing:0">(required)</span></div>
         <div style="display:flex;gap:8px;align-items:stretch">
-          <input id="onboarding-ai-name" type="text" maxlength="40" placeholder="e.g. Bayani, Isko, Barangay AI…"
+          <input id="onboarding-ai-name" type="text" maxlength="40" placeholder="Your AI's name — e.g. Bayani, Isko…"
+            oninput="clearOnboardingNameError()"
             onkeydown="if(event.key==='Enter')saveOnboardingName()"
             style="flex:1;min-width:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text-primary);font-family:var(--font-main);font-size:14px;font-weight:600;outline:none">
           <button onclick="saveOnboardingName()"
             style="flex-shrink:0;white-space:nowrap;background:var(--dc-blue);color:white;border:none;border-radius:10px;padding:11px 20px;font-family:var(--font-main);font-size:13.5px;font-weight:700;letter-spacing:0.2px;cursor:pointer;transition:background 0.2s"
-            onmouseover="this.style.background='var(--dc-blue-dark)'" onmouseout="this.style.background='var(--dc-blue)'">Name it</button>
+            onmouseover="this.style.background='var(--dc-blue-dark)'" onmouseout="this.style.background='var(--dc-blue)'">Save</button>
         </div>
+        <input id="onboarding-creator-name" type="text" maxlength="60" placeholder="Your name — e.g. Juan Dela Cruz"
+          oninput="clearOnboardingNameError()"
+          onkeydown="if(event.key==='Enter')saveOnboardingName()"
+          style="width:100%;box-sizing:border-box;margin-top:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text-primary);font-family:var(--font-main);font-size:14px;font-weight:600;outline:none">
+        <p class="modal-text" style="font-size:12px;margin:7px 0 0">Your name is credited as the builder when you publish this AI.</p>
+        <p id="onboarding-name-error" style="display:none;font-size:12px;font-weight:700;color:var(--danger);margin:7px 0 0"></p>
       </div>
 
       <!-- 2 · Connect a model -->
@@ -1048,7 +1060,7 @@ git push</code></div></div>
 
       <div class="modal-highlight" style="margin-top:4px">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
-        <span>In a hurry? Just connect a model and hit <strong>Enter chat</strong> — everything else can wait.</span>
+        <span>In a hurry? Fill in the two names above, then hit <strong>Enter chat</strong> — the model and the personality can wait.</span>
       </div>
     </div>
     </div><!-- /#onboard-step-3 -->
@@ -1285,9 +1297,9 @@ git push</code></div></div>
 
       <!-- Creator name -->
       <div class="settings-field">
-        <label class="settings-label" for="settings-creator-name">Creator Name</label>
-        <input class="settings-input" id="settings-creator-name" type="text" placeholder="e.g. Juan Dela Cruz" maxlength="60">
-        <span class="settings-hint">Your name — credited as the builder of this AI.</span>
+        <label class="settings-label" for="settings-creator-name">Creator Name <span style="color:var(--danger);font-weight:700">*</span></label>
+        <input class="settings-input" id="settings-creator-name" type="text" placeholder="e.g. Juan Dela Cruz" maxlength="60" required>
+        <span class="settings-hint">Your name — credited as the builder of this AI. Required before you can publish.</span>
       </div>
 
       <hr class="settings-divider">

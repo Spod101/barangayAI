@@ -2,12 +2,13 @@
 function openModal() {
   document.getElementById('modal-backdrop').style.display = 'flex';
   onboardGoStep(1);   // always start on the intro step
-  // Pre-fill the onboarding name field with whatever's already saved
+  // Pre-fill both name fields with whatever's already saved
+  const s = loadSettings() || {};
   const nameInput = document.getElementById('onboarding-ai-name');
-  if (nameInput) {
-    const s = loadSettings() || {};
-    nameInput.value = (s.ai_name && s.ai_name !== AI_NAME) ? s.ai_name : '';
-  }
+  if (nameInput) nameInput.value = (s.ai_name && s.ai_name !== AI_NAME) ? s.ai_name : '';
+  const creatorInput = document.getElementById('onboarding-creator-name');
+  if (creatorInput) creatorInput.value = s.creator_name || '';
+  clearOnboardingNameError();
 }
 
 // Three-step onboarding wizard: 1) intro, 2) pick a model, 3) AI setup (name your AI).
@@ -35,22 +36,59 @@ function closeModal() {
   document.getElementById('modal-backdrop').style.display = 'none';
 }
 
-// Name the AI from the onboarding pop-up. Saves to the SAME store Settings uses,
-// so the name sticks and the Settings → Name field reflects it.
+// ── STEP 3 NAMES ──────────────────────────────────────────────────────
+// Both the AI's name and the builder's name are captured here. The creator
+// name is not vanity: publish.js credits it on the published site, and the
+// only way to guarantee a published AI carries a real byline is to collect
+// it before the student ever reaches the chat.
+function showOnboardingNameError(msg, focusEl) {
+  const err = document.getElementById('onboarding-name-error');
+  if (err) { err.textContent = msg; err.style.display = ''; }
+  if (focusEl) focusEl.focus();
+}
+
+function clearOnboardingNameError() {
+  const err = document.getElementById('onboarding-name-error');
+  if (err) { err.textContent = ''; err.style.display = 'none'; }
+}
+
+// Reads both fields and reports what's missing. Returns null when either is
+// blank, so callers can refuse to move on without repeating the checks.
+function readOnboardingNames() {
+  const nameInput = document.getElementById('onboarding-ai-name');
+  const creatorInput = document.getElementById('onboarding-creator-name');
+  const name = (nameInput?.value || '').trim();
+  const creator = (creatorInput?.value || '').trim();
+  if (!name) {
+    showOnboardingNameError('Give your AI a name first.', nameInput);
+    return null;
+  }
+  if (!creator) {
+    showOnboardingNameError('Add your name — it gets credited as the builder.', creatorInput);
+    return null;
+  }
+  clearOnboardingNameError();
+  return { name, creator };
+}
+
+// Saves to the SAME store Settings uses, so both names stick and the
+// Settings fields reflect them.
 function saveOnboardingName() {
-  const input = document.getElementById('onboarding-ai-name');
-  if (!input) return;
-  const name = input.value.trim();
-  if (!name) { input.focus(); return; }
+  const names = readOnboardingNames();
+  if (!names) return false;
   const s = loadSettings() || {};
-  s.ai_name = name;
+  s.ai_name = names.name;
+  s.creator_name = names.creator;
   saveSettings(s);
   applySettings(s);
-  // Keep the Settings panel draft + field in sync for this session
-  window._BASE_NAME_DRAFT = name;
+  // Keep the Settings panel draft + fields in sync for this session
+  window._BASE_NAME_DRAFT = names.name;
   const settingsInput = document.getElementById('settings-ai-name');
-  if (settingsInput && !getActivePersonaDraft()) settingsInput.value = name;
-  showToast(`Your AI is now "${name}"!`, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 3v4"/><path d="M3 5h4"/><path d="M19 17v4"/><path d="M17 19h4"/></svg>');
+  if (settingsInput && !getActivePersonaDraft()) settingsInput.value = names.name;
+  const settingsCreator = document.getElementById('settings-creator-name');
+  if (settingsCreator) settingsCreator.value = names.creator;
+  showToast(`Your AI is now "${names.name}", built by ${names.creator}!`, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 3v4"/><path d="M3 5h4"/><path d="M19 17v4"/><path d="M17 19h4"/></svg>');
+  return true;
 }
 function handleBackdropClick(e) {
   if (e.target === document.getElementById('modal-backdrop')) closeModal();
@@ -74,10 +112,11 @@ function closeGuide() {
   // leave dock state as-is so reopening keeps the user's last layout choice
 }
 
+// "Enter chat" is the gate. Both names are required, so a student can't slip
+// past setup and end up publishing an AI credited to nobody — the field is
+// far harder to go back and fill in once they're deep in the chat.
 function finishOnboarding() {
-  // Keep whatever name they typed, even if they didn't hit "Name it"
-  const input = document.getElementById('onboarding-ai-name');
-  if (input && input.value.trim()) saveOnboardingName();
+  if (!saveOnboardingName()) return;
   closeModal();
 }
 

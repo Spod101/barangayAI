@@ -115,6 +115,7 @@ window.addEventListener('load', async () => {
   window.PUBLISHED_CONFIG = published;
   window.IS_VISITOR = isVisitorMode(published);
   if (window.IS_VISITOR) lockVisitorUI();
+  hideOwnerPitchFooter();   // no-op on localhost; covers unpublished deploys too
 
   initModelRegistry();   // restore saved endpoints + discover live local models
   document.documentElement.style.setProperty('--dc-blue', BRAND_COLOR);
