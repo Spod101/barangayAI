@@ -22,17 +22,22 @@ function toggleThinkingQuick() {
 }
 
 // Applies thinking on/off to the request payload for Qwen3-family models.
-// Both signals are Ollama/Qwen specific, so they only go to endpoints that have
-// identified themselves as Ollama (see isOllamaEndpoint in app/models.js):
+// The two signals are gated separately, because they are specific to different
+// things — the endpoint and the model:
 //   - chat_template_kwargs is not an OpenAI field. Ollama ignores unknown fields,
 //     but cloud providers validate the body strictly and answer 400 Bad Request,
-//     which killed every message sent to an added API endpoint.
-//   - /think and /no_think are Qwen chat-template tokens. Anywhere else they are
-//     just stray text pasted onto the user's question.
+//     which killed every message sent to an added API endpoint. So it goes only
+//     to endpoints that identified themselves as Ollama (isOllamaEndpoint).
+//   - /think and /no_think are Qwen chat-template tokens, and "runs on Ollama"
+//     does not imply "is a Qwen3". Gemma, Llama, Mistral, Phi and Qwen 2.5 pass
+//     the endpoint check and would receive the token as stray text appended to
+//     the user's question, so this half is gated on the model tag as well
+//     (supportsThinkingTokens, also in app/models.js).
 function applyThinkingSwitch(payload) {
   if (!isOllamaEndpoint(window.ACTIVE_BASE, window.ACTIVE_KIND)) return;
   const on = !!window._THINKING_ENABLED;
   payload.chat_template_kwargs = { enable_thinking: on };
+  if (!supportsThinkingTokens(window.ACTIVE_MODEL)) return;
   const msgs = payload.messages;
   if (msgs && msgs.length) {
     const last = msgs[msgs.length - 1];
@@ -182,7 +187,12 @@ async function sendMessage() {
     `You are ${_runtimeName} — an open source AI assistant built by the Filipino developer community. You run locally via Ollama and Qwen on school lab hardware. Help with programming, open source, AI/ML, local LLM setup, and Filipino tech topics. Be friendly and practical. You may use Filipino/Taglish warmth but stay clear and technical when needed.`;
   const _focusRule = `\n\n## Answer Scope Rule (strict)\nAnswer ONLY what the user explicitly asked for. Do not add adjacent, related, or "bonus" information unless the user asked for it.\n- If the user says "list my projects only", return ONLY projects — no education, no skills, no certifications, no closing offers to add more.\n- If the user asks "what is X", define X — do not also explain Y and Z.\n- If the user asks for a list of N items, return exactly that list — no preamble like "Sure, here's a summary…" and no trailing "If you want, I can also…".\n- Treat words like "only", "just", "specifically" as hard filters. Everything outside that filter must be excluded even if it seems helpful.\n- When information is missing from the provided reference material to answer the exact question, say so briefly instead of substituting related information.\n- Prefer short, direct answers over comprehensive ones. Brevity = accuracy here.`;
   const _languageChoice = window._REPLY_LANG_ACTIVE || 'english';
-  const _languageRule = buildLanguageRule(_languageChoice);
+  // `messages` holds conversation turns only — the system prompt is prepended at
+  // payload time below — so length 1 means the user message pushed a few lines
+  // up is the only one there, i.e. this is the opening turn and it gets the full
+  // grammar reference. See pickLanguageTier in app/settings.js.
+  const _languageTier = pickLanguageTier(_languageChoice, messages.length <= 1);
+  const _languageRule = buildLanguageRule(_languageChoice, _languageTier.tier);
   let systemPrompt = _runtimeKnowledge
     ? `${_basePrompt}${_focusRule}${_languageRule}\n\n## Your Knowledge & Abilities\n${_runtimeKnowledge}`
     : `${_basePrompt}${_focusRule}${_languageRule}`;
@@ -204,7 +214,9 @@ async function sendMessage() {
     _runtimeTone ? 'your custom prompt — Settings › Personalize' : 'the built-in default personality');
   _part('Answer rules', _focusRule, 'built in — keeps replies short and on-topic');
   _part(`Reply language: ${_languageChoice.charAt(0).toUpperCase() + _languageChoice.slice(1)}`,
-    _languageRule, 'Settings › Personalize › Reply language');
+    _languageRule, _languageTier.why
+      ? `Settings › Personalize › Reply language — ${_languageTier.why}`
+      : 'Settings › Personalize › Reply language');
   _part('Extra knowledge you wrote', _runtimeKnowledge, 'Settings › Personalize › Knowledge');
 
   const _trainingFiles = Array.isArray(window._TRAINING_FILES_ACTIVE) ? window._TRAINING_FILES_ACTIVE : [];

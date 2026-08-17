@@ -98,6 +98,20 @@ function modelParamsB(tag) {
   return m ? parseFloat(m[1]) : null;
 }
 
+// Does this model understand /think and /no_think? They are chat-template
+// tokens of Qwen's hybrid-reasoning line — Qwen3 onwards, plus QwQ — and not a
+// general Ollama feature. Gemma, Llama, Mistral, Phi and Qwen 2.5 all run on
+// Ollama and none of them parse the tokens: they arrive as literal text glued
+// to the end of the user's question. Being wrong in the permissive direction
+// corrupts every prompt, so an unrecognised tag answers false.
+//   "qwen3:4b" → true | "qwq:32b" → true | "qwen2.5:3b" → false | "gemma3:1b" → false
+function supportsThinkingTokens(tag) {
+  const t = (tag || '').toLowerCase();
+  if (t.includes('qwq')) return true;
+  const m = /qwen-?(\d+)/.exec(t);
+  return !!m && parseInt(m[1], 10) >= 3;
+}
+
 // Rough memory need for a Q4 model: ~0.75 GB per B of params + 1 GB overhead
 // (same heuristic family as the onboarding recommender's needGB column).
 function modelNeedGB(tag) {

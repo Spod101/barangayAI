@@ -456,7 +456,166 @@ function setLanguageChoice(lang, btn) {
 }
 window.setLanguageChoice = setLanguageChoice;
 
-function buildLanguageRule(lang) {
+// ── LANGUAGE RULE TIERS ───────────────────────────────────────────────
+// The full grammar reference in buildLanguageRule runs 4–8.5 KB per language and
+// used to go out with every single message. Measured with the app's own prompt
+// inspector, a Taglish reply to a 118-character question produced an 8.4k prompt
+// that was 49% language rule. That is waste on a 3B model and actively harmful on
+// a 1B one, where the grammar tables compete with the user's real question for
+// attention and the question loses.
+//
+// So there are two tiers, picked per message by pickLanguageTier:
+//   full    — the whole reference. Sent once, on the opening turn.
+//   compact — the table below. Sent on every turn after that, and on every turn
+//             for models under SMALL_MODEL_B, which never see the full version.
+//
+// What the compact tier keeps is a judgement call, and this is the reasoning:
+// keep what a model cannot guess and cannot recover from getting wrong — the
+// directive, the register and its particles, the case markers and negators that
+// distinguish each language from its neighbours, and the escape hatch. Drop the
+// teaching material — focus paradigms, pronoun tables, worked error lists. From
+// turn two onward the model's own previous reply is sitting in the context
+// window, and one paragraph of correct Cebuano is a better example of Cebuano
+// than any table describing it.
+//
+// The two tiers are hand-written and neither is generated from the other: the
+// compact entries are distillations, not slices, so several lines here appear
+// nowhere in the full text. Change a language and check whether its entry in the
+// other tier needs the same change.
+
+// Models below this many billion parameters always get the compact tier. At
+// gemma3:1b and llama3.2:1b the full reference measurably costs more in
+// instruction-following than it buys in grammar; qwen2.5:3b is the smallest
+// model that holds up under it, so the line sits just under 3.
+const SMALL_MODEL_B = 3;
+
+// Shared by every compact entry — the full tier spells this list out per
+// language with minor variations, which is not worth the bytes down here.
+const COMPACT_TECH_TERMS = 'AI, code, function, API, file, app, server, database, terminal, bug, error, install, update, deploy, click, run, settings, folder, output, input, script, model, token, prompt';
+
+// The compact counterpart of `banned` — the same prohibition with the word list
+// trimmed to the high-frequency offenders and the worked replacements dropped.
+const bannedCompact = `\n\n### No Indonesian/Malay\nYou are speaking a Philippine language, not Indonesian or Malay. Never use: dengan, yang, ini, itu, untuk, dari, tidak, tak, bisa, juga, sudah, atau, tetapi, namun, karena, kalau, mungkin, banyak, sangat, saja, mereka, belum, sebelum, setelah, berbagai. If a word feels Indonesian, delete it and use the Philippine one.`;
+
+const LANGUAGE_RULE_COMPACT = {
+  filipino: `\n\n## Language Rule (STRICT — Filipino/Tagalog only)\nRespond ONLY in Filipino (Tagalog-based), whatever language the user writes in.
+
+### Register
+Casual and warm, like a classmate — never formal or news-anchor Tagalog. Say "pwede" not "maaari", "gusto" not "nais", "kasi" not "sapagkat", "yung/yun" not "ang/iyon". Never open with "Bilang isang AI..." or "Ang iyong kahilingan ay...".
+
+### Must Not Get Wrong
+- Markers: "ang" = subject, "ng" = object/possessive, "sa" = location. "Pumunta sa tindahan" ✓ / "Pumunta ng tindahan" ✗
+- Linkers: "-ng" after a vowel ("magandang bahay"), "na" after a consonant ("mabilis na kotse"), "nang" for manner ("tumakbo nang mabilis").
+- "rin" after a vowel, "din" after a consonant. "Gusto kita" — never "Gusto ko ikaw".
+- Verb focus must agree with the topic: "Bumili siya ng tinapay" ✓ or "Binili niya ang tinapay" ✓ — never "Bumili siya ang tinapay" ✗
+
+### Technical Terms — Keep in English
+${COMPACT_TECH_TERMS}. Wrap them naturally: "I-run mo yung script."
+
+### Escape Hatch
+Unknown Filipino word → use English. A correct mixed sentence beats broken Filipino.${bannedCompact}`,
+
+  taglish: `\n\n## Language Rule (STRICT — Taglish)\nRespond in Taglish — natural Filipino-English code-switching as Filipinos actually speak it. Filipino grammatical frame, English for technical and borrowed words. Both halves must be correct.
+- "Pwede mong i-run yung code sa terminal, tapos tingnan mo yung output." ✓
+- "Maaari mong patakbuhin ang programa sa terminal." ✗ (too formal)
+
+### Stay in Filipino
+Connectors (tapos, kasi, pero, kaya, kung, kapag, kahit, bago), reactions and fillers (sige, oo nga, talaga, ganun ba, eh), and every pronoun and particle (mo, ko, niya, yung, yun, ba, na, pa, nga).
+
+### Switch to English
+Technical terms (function, loop, variable, array, error, deploy, install, run, debug, build, test, commit) and naturalized loanwords (okay, sure, actually, basically, anyway) — and any time the Filipino word would sound stiff.
+
+### Must Not Get Wrong
+- "I-check mo yung file" ✓ / "I-check mo ng file" ✗
+- Borrowed verbs take i- for object focus ("I-install mo", "I-run natin") and mag- for actor focus ("Mag-install ka").
+- "Gawin mo nang maayos" ✓ / "Gawin mo ng maayos" ✗
+- "Pumunta sa settings" ✓ / "Pumunta ng settings" ✗
+
+### Escape Hatch
+When the Filipino word sounds unnatural, use English. A correct mixed sentence beats broken Filipino.${bannedCompact}`,
+
+  bisaya: `\n\n## Language Rule (STRICT — Cebuano/Bisaya only)\nRespond ONLY in Cebuano (Bisaya) — the Bisaya of Cebu, Davao, and Mindanao. NOT Tagalog, NOT Filipino.
+
+### Register
+Casual and warm, like a Cebuano friend, not a textbook. Natural particles: bai, uy, lagi, bitaw, man, ba, gud, jud/gyud, lang/ra, diay, pud, na, pa. "Sige gud, buhaton nako." | "Okay ra ba?"
+
+### Must Not Get Wrong
+- The object marker is "og/ug", NEVER Tagalog "ng": "Mokaon ko og isda" ✓ / "Mokaon ko ng isda" ✗ ("ug" is also "and".)
+- Other markers: "ang" = subject, "sa" = location, "ni" = of (a person).
+- Negation: "dili" for future actions and commands, "wala" for completed actions and states, "ayaw" for prohibitions. Never "hindi".
+- The ligature is "nga" — "gamay nga balay" — shortening to -ng after a vowel: "dakong balay".
+- Cebuano verbs, not Tagalog ones: "Miadto siya sa merkado" ✓ / "Pumunta siya sa merkado" ✗ Completed object focus is gi-: "Gikuha nako."
+
+### Technical Terms — Keep in English
+${COMPACT_TECH_TERMS}. Wrap them naturally: "I-check ang settings."
+
+### Escape Hatch
+Unknown Bisaya word → use English. A correct mixed sentence beats broken Bisaya.${bannedCompact}`,
+
+  hiligaynon: `\n\n## Language Rule (STRICT — Hiligaynon/Ilonggo only)\nRespond ONLY in Hiligaynon (Ilonggo), the language of Iloilo, Bacolod, and Western Visayas. NOT Tagalog, NOT Cebuano.
+
+### Register
+Warm, gentle, and polite — the melodic register Ilonggo is known for. Natural particles: man, gid, na, pa, lang, bala, abi, kuno, daw, no. "Maayo ka bala?" | "Salamat gid, ha."
+
+### Must Not Get Wrong
+- Object markers are "sang" (definite) and "sing" (indefinite), NEVER Tagalog "ng": "Ginkaon niya sang tinapay" ✓
+- Other markers: "ang" = subject, "sa" = location, "kay" = of/for a named person.
+- Negation: "indi" for future actions, intentions, and commands; "wala" for completed actions and states. Never "hindi" (Tagalog) or "dili" (Cebuano).
+- "and" is "kag" — never "at" (Tagalog) or "ug" (Cebuano). "or" is "ukon", "because" is "tungod kay".
+- Object focus: gin- completed ("Ginhimo niya"), gina- ongoing ("Ginakaon pa niya"), -on future ("Kaonon ko").
+- The ligature is "nga", shortening to -ng after a vowel: "dakong balay".
+
+### Technical Terms — Keep in English
+${COMPACT_TECH_TERMS}. Wrap them naturally: "I-check mo ang settings."
+
+### Escape Hatch
+Unknown Hiligaynon word → use English. A correct mixed sentence beats broken Hiligaynon.${bannedCompact}`,
+
+  ilocano: `\n\n## Language Rule (STRICT — Ilocano/Ilokano only)\nRespond ONLY in Ilocano (Ilokano), the language of the Ilocos provinces and Northern Luzon. NOT Tagalog, NOT Bisaya.
+
+### Register
+Practical, direct, and genuinely warm — no fluff. Natural particles: met (very characteristic, nearly every sentence), pay, la, man, koma, ngata, ketdi, ket, ta, unay, bassit. "Ania met ti napasamak?" | "Agyamanak unay."
+
+### Must Not Get Wrong
+- Articles: "ti" = the (singular), "dagiti" = the (plural), "iti" = in/at/of the, "kadagiti" = the same for plurals. NEVER "ang" or "mga".
+- Ilocano is PREDICATE-FIRST: the verb opens the clause and the pronoun attaches to it as an enclitic. "Nangan ak" ✓ / "Ak nangan" ✗
+- Negation: "haan" or "saan" for not — contracting onto pronouns as saanak, saanka, saanna — and "awan" for there is none. Never "hindi".
+- The ligature is "a" after a consonant ("naimbag a tao") and -ng after a vowel ("napintasng babai"). Never "ng".
+- Connectors: "ket" = and/then (clauses), "ken" = and (nouns), "ngem" = but, "wenno" = or, "ta" = because, "no" = if. Never "kasi" or "pero".
+
+### Technical Terms — Keep in English
+${COMPACT_TECH_TERMS}. Wrap them naturally: "I-check ti settings mo."
+
+### Escape Hatch
+Ilocano verb morphology is complex. If unsure of the correct verb form, use a simpler construction or English. Never produce wrong Ilocano grammar.${bannedCompact}`,
+};
+
+// Which tier this turn gets, plus a plain-language reason the prompt inspector
+// can show — the inspector's promise is that every row names the thing that put
+// it there, and "why is this shorter than last time" is exactly the question a
+// student would have.
+//
+// English has one tier: its rule is two sentences either way, so there is
+// nothing to compress and nothing to explain.
+function pickLanguageTier(lang, isFirstTurn) {
+  if (lang === 'english' || !LANGUAGE_RULE_COMPACT[lang]) return { tier: 'full', why: '' };
+  const params = (typeof modelParamsB === 'function') ? modelParamsB(window.ACTIVE_MODEL) : null;
+  if (params != null && params < SMALL_MODEL_B) {
+    return {
+      tier: 'compact',
+      why: `${window.ACTIVE_MODEL} is a small model, so it gets the short version — the full grammar rules would crowd out your actual question`,
+    };
+  }
+  if (isFirstTurn) return { tier: 'full', why: '' };
+  return {
+    tier: 'compact',
+    why: 'the short version — the full grammar rules went out with your first message in this chat',
+  };
+}
+
+function buildLanguageRule(lang, tier) {
+  if (tier === 'compact' && LANGUAGE_RULE_COMPACT[lang]) return LANGUAGE_RULE_COMPACT[lang];
+
   // Indonesian/Malay words that often bleed into model output — strictly banned in all Philippine language modes
   const banned = `\n\n### BANNED — Indonesian/Malay Contamination\nYou are speaking a Philippine language, NOT Indonesian or Malay. These words are FORBIDDEN — replace every single one:\n"dengan" → sa/kasama | "yang" → na/yung/nga | "ini" → ito/ni | "itu" → iyon/ana/adto | "untuk" → para/alang sa | "dari" → mula sa/gikan sa | "tidak/tak" → hindi/dili/haan/indi | "bisa" → pwede/kaya/makabuhat | "juga" → din/rin/pud/met | "sudah" → na | "kegiatan" → gawain/buluhaton/aramid | "pengguna" → user/gumagamit/mogamit | "lingkungan" → kapaligiran/palibot | "berbagai" → iba't ibang/nagkalainlain | "mungkin" → siguro/basin/ngata | "buatan" → gawa/hinimo | "namun" → pero/ngunit/apan/ngem | "saja" → lang/ra/la | "kalau" → kung/kon/no | "karena" → kasi/dahil/kay/ta | "mereka" → sila/isuda | "kami" → only valid in Filipino/Bisaya/Hiligaynon (not Indonesian sense) | "belum" → hindi pa/wala pa | "sudah" → na/nankaman | "sangat" → napaka/kaayo/unay/ado | "sebelum" → bago/sa wala pa | "setelah" → pagkatapos/human | "banyak" → marami/daghan/madamo/adu | "atau" → o/kon/wenno | "tetapi" → pero/ngunit/apan/ngem\nIf ANY word feels Indonesian or Malay — stop, delete it, and use the correct Philippine language word.`;
 
@@ -801,6 +960,13 @@ ${banned}`;
   }
 
   // default: english
-  return `\n\n## Language Rule (strict)\nRespond ONLY in English, regardless of what language the user writes in. Use clear, plain English — avoid jargon unless the user uses it first.${banned}`;
+  //
+  // No `banned` block here. It opens with "You are speaking a Philippine
+  // language, NOT Indonesian or Malay", which is simply false in English mode —
+  // and a model replying in English was never going to reach for "dengan"
+  // anyway. It was 87% of this branch (1,176 of 1,356 characters) and English is
+  // the default reply language, so it was the single most-sent dead weight in
+  // the app.
+  return `\n\n## Language Rule (strict)\nRespond ONLY in English, regardless of what language the user writes in. Use clear, plain English — avoid jargon unless the user uses it first.`;
 }
 
