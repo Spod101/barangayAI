@@ -22,17 +22,22 @@ function toggleThinkingQuick() {
 }
 
 // Applies thinking on/off to the request payload for Qwen3-family models.
-// Both signals are Ollama/Qwen specific, so they only go to endpoints that have
-// identified themselves as Ollama (see isOllamaEndpoint in app/models.js):
+// The two signals are gated separately, because they are specific to different
+// things — the endpoint and the model:
 //   - chat_template_kwargs is not an OpenAI field. Ollama ignores unknown fields,
 //     but cloud providers validate the body strictly and answer 400 Bad Request,
-//     which killed every message sent to an added API endpoint.
-//   - /think and /no_think are Qwen chat-template tokens. Anywhere else they are
-//     just stray text pasted onto the user's question.
+//     which killed every message sent to an added API endpoint. So it goes only
+//     to endpoints that identified themselves as Ollama (isOllamaEndpoint).
+//   - /think and /no_think are Qwen chat-template tokens, and "runs on Ollama"
+//     does not imply "is a Qwen3". Gemma, Llama, Mistral, Phi and Qwen 2.5 pass
+//     the endpoint check and would receive the token as stray text appended to
+//     the user's question, so this half is gated on the model tag as well
+//     (supportsThinkingTokens, also in app/models.js).
 function applyThinkingSwitch(payload) {
   if (!isOllamaEndpoint(window.ACTIVE_BASE, window.ACTIVE_KIND)) return;
   const on = !!window._THINKING_ENABLED;
   payload.chat_template_kwargs = { enable_thinking: on };
+  if (!supportsThinkingTokens(window.ACTIVE_MODEL)) return;
   const msgs = payload.messages;
   if (msgs && msgs.length) {
     const last = msgs[msgs.length - 1];
