@@ -141,7 +141,7 @@ function renderPublishedCredit() {
   el.id = 'published-credit';
   el.innerHTML = `
     <div class="published-credit-main">${escHtml(name)} — built by ${escHtml(who || 'a student')} at a DEVCON Barangay AI Code Camp</div>
-    <div class="published-credit-note">This public demo answers using a hosted model. The real one runs offline on ${escHtml(who || 'their')}${who ? "'s" : ''} own computer — free, private, no cloud. <a href="https://github.com/devcon-ph/barangay-ai" target="_blank" rel="noopener">Build your own →</a></div>`;
+    <div class="published-credit-note">This public demo answers using a hosted model. The real one runs offline on ${escHtml(who || 'their')}${who ? "'s" : ''} own computer — free, private, no cloud. <a href="https://github.com/Spod101/barangayAI" target="_blank" rel="noopener">Build your own →</a></div>`;
   host.appendChild(el);
 }
 

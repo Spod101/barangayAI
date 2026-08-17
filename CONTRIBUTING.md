@@ -18,7 +18,7 @@ No build step, no framework, no bundler. If you can edit a file and refresh a br
 
 `main` is protected: nobody pushes to it directly, including the maintainer. Every change lands through a pull request.
 
-1. **Fork** the repo (top-right on GitHub), then clone your fork:
+1. **Fork** [`Spod101/barangayAI`](https://github.com/Spod101/barangayAI) (Fork button, top-right on GitHub), then clone your fork:
 
    ```bash
    git clone https://github.com/YOUR-USERNAME/barangayAI.git

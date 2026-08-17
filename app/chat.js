@@ -1222,7 +1222,7 @@ function appendTypingIndicator() {
               <div class="thinking-edu-links">
                 <a href="https://ollama.com" target="_blank" rel="noopener">Ollama docs</a>
                 <a href="https://ollama.com/library/qwen2.5" target="_blank" rel="noopener">Qwen 2.5</a>
-                <a href="https://github.com/devcon-ph/barangay-ai" target="_blank" rel="noopener">GitHub repo</a>
+                <a href="https://github.com/Spod101/barangayAI" target="_blank" rel="noopener">GitHub repo</a>
                 <a href="https://devcon.ph" target="_blank" rel="noopener">DEVCON</a>
               </div>
             </div>

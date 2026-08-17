@@ -4,6 +4,8 @@ A polished, fully client-side AI chat app by **DEVCON.PH** — built to run on t
 
 Built for DEVCON camps and barangay-level digital literacy: open one HTML file, point it at a local model, and start chatting — in English, Filipino, Taglish, or your own regional language.
 
+**Repository:** [github.com/Spod101/barangayAI](https://github.com/Spod101/barangayAI)
+
 ---
 
 ## Features
@@ -80,7 +82,18 @@ echo 'export OLLAMA_ORIGINS="*"' >> ~/.zshrc
 
 > `*` means *any* page you visit can send requests to your local Ollama while it's running. That's the right trade for a camp laptop or a dev machine. If you'd rather be strict, set the exact origin instead — e.g. `http://localhost:8000` — and it will still work with the Quick start below.
 
-### 3. Open the app
+### 3. Get the code
+
+Clone the repo — or [download it as a ZIP](https://github.com/Spod101/barangayAI/archive/refs/heads/main.zip) if you don't have Git:
+
+```bash
+git clone https://github.com/Spod101/barangayAI.git
+cd barangayAI
+```
+
+Planning to change anything and send it back? [Fork it](https://github.com/Spod101/barangayAI/fork) first and clone your own fork instead — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### 4. Open the app
 
 Because the app loads its CSS and JS as separate files (`styles.css`, `db.js`, `rag.js`, `app/*.js`), open it through a local web server rather than `file://` (browsers block script loading from `file://`):
 

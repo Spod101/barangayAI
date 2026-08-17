@@ -22,3 +22,5 @@ desktop.ini
 *.tmp
 tmp/
 .gstack/
+
+HANDOVER.md
