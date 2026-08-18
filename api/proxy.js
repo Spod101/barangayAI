@@ -9,7 +9,8 @@
 // Same-origin also means no CORS setup for visitors, ever.
 //
 // Set on Vercel → Settings → Environment Variables:
-//   MODEL_API_KEY   (required)  your provider key, e.g. a free Groq key
+//   MODEL_API_KEY   (required)  your OWN provider key, e.g. a free Groq key.
+//                               Every visitor's message spends your allowance.
 //   MODEL_API_BASE  (optional)  defaults to Groq
 //   MODEL_NAME      (optional)  defaults to a small fast Groq model
 // The one-variable path is the taught one: set MODEL_API_KEY, redeploy, done.
@@ -19,9 +20,11 @@ const DEFAULT_BASE  = 'https://api.groq.com/openai/v1';
 const DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 // This endpoint is public and unauthenticated — anyone with the URL can
-// spend the owner's quota. These caps are what keep a shared link from
-// turning into a bill: the client cannot pick a pricier model, cannot ask
-// for a huge completion, and cannot send an enormous prompt.
+// spend the owner's own quota. The key is theirs, created on their own
+// provider account; visitors never see it and never pay for it. These caps
+// are what keep a shared link from turning into a bill: the client cannot
+// pick a pricier model, cannot ask for a huge completion, and cannot send
+// an enormous prompt.
 const MAX_TOKENS_CAP = 512;
 const MAX_BODY_BYTES = 128 * 1024;
 

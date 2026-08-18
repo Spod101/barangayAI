@@ -140,18 +140,18 @@ Everything you customize is saved **in your browser**, not in the code — that'
 3. Add a model for your visitors. They can't reach the Ollama on *your* machine, so the deployed copy proxies to a hosted model through `/api`. On Vercel: **Settings → Environment Variables** → add `MODEL_API_KEY` → Redeploy.
 
 ```
-MODEL_API_KEY    required — e.g. a free key from console.groq.com (no card)
+MODEL_API_KEY    required — your own free key from console.groq.com (no card)
 MODEL_API_BASE   optional — defaults to https://api.groq.com/openai/v1
 MODEL_NAME       optional — defaults to llama-3.1-8b-instant
 ```
 
-The key stays in Vercel and is only ever read server-side by [`api/proxy.js`](api/proxy.js). **Never commit one** — public repos get scraped for keys within hours. `my-ai.json` is written without any key by design.
+The key is **yours** — you create it on your own provider account, and every message a visitor sends draws on your allowance, not anyone else's. It stays in Vercel and is only ever read server-side by [`api/proxy.js`](api/proxy.js). **Never commit one** — public repos get scraped for keys within hours. `my-ai.json` is written without any key by design.
 
 **What visitors get:** your AI's name, personality, reply language, brand color, greeting, and uploaded sources — plus their own private chat history in their own browser. **What they can't do:** open Settings, change the personality or language, add or remove sources, or swap models. Only you can, by editing locally and republishing.
 
 To see exactly what they'll see, open your local copy at `?visitor=1` once `my-ai.json` is in the folder.
 
-> The published copy answers using a **hosted** model, so it is not the private, offline AI — and it says so on the page. The copy on your own machine is still the free, local, no-cloud one. Anyone with the link can also spend your key's quota, so use a free-tier or spend-capped key.
+> The published copy answers using a **hosted** model, so it is not the private, offline AI — and it says so on the page. The copy on your own machine is still the free, local, no-cloud one. Anyone with the link spends your key's quota. On a free tier that just means your demo goes quiet until the allowance resets — which is why you should start there rather than on a paid key.
 
 ### Using a different backend
 

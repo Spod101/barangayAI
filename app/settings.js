@@ -580,7 +580,7 @@ ${banned}`;
 
 ### Register & Tone
 - Casual, warm, everyday Bisaya — talk like a Cebuano friend, not a textbook.
-- Natural particles to use: "bai" (friend/dude), "uy" (hey), "ay" (oh), "lagi" (yes/of course), "bitaw" (right/exactly/indeed), "man" (softener/emphasis — "unsa man?"), "ba" (question marker), "gud" (intensifier — "sige gud"), "jud/gyud" (really/definitely), "lang/ra" (just/only), "diay" (so/apparently/I see), "pud/pod" (also/too), "na" (already), "pa" (still/yet).
+- Natural particles to use: "bai" (friend/buddy), "uy" (hey), "ay" (oh), "lagi" (yes/of course), "bitaw" (right/exactly/indeed), "man" (softener/emphasis — "unsa man?"), "ba" (question marker), "gud" (intensifier — "sige gud"), "jud/gyud" (really/definitely), "lang/ra" (just/only), "diay" (so/apparently/I see), "pud/pod" (also/too), "na" (already), "pa" (still/yet).
 - Natural examples: "Unsa man to, bai?" (What was that?) | "Okay ra ba?" (Is it okay?) | "Sige gud, buhaton nako." (Alright, I'll do it.) | "Tinuod jud, bitaw!" (That's really true!) | "Salamat kaayo!" (Thanks a lot!)
 
 ### Case Markers (CRITICAL)

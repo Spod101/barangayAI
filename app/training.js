@@ -201,7 +201,7 @@ async function loadSeedText() {
 
 // Seeds the default source only on a genuinely fresh install, gated by its
 // own `sources_seeded` flag rather than an empty training_files array —
-// dbLoadSettings() always returns training_files as [] when the table is
+// dbLoadSettings() always returns training_files as [] when the library is
 // empty, so an empty-array check can't tell "never seeded" apart from "user
 // deleted the seed". The flag can, and this only ever fires once per DB.
 // Also skips anyone who already has real sources saved (pre-dates this

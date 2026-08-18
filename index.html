@@ -578,7 +578,7 @@ git push</code></div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-body">
         <b>Import into Vercel</b><p>On Vercel: <strong>Add New → Project</strong>, pick your repo, click <strong>Deploy</strong>. No config needed.</p></div></div>
       <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-body">
-        <b>Get a free model key</b><p>Visitors can't reach the Ollama on <em>your</em> laptop — so the live copy borrows a hosted model. Get a free key at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com →</a> (no card needed). <em>Any OpenAI-compatible provider works if you already have one — but DeepSeek needs paid credits, so don't start there today.</em></p></div></div>
+        <b>Get your own free model key</b><p>Visitors can't reach the Ollama on <em>your</em> laptop — so the live copy borrows a hosted model. Sign up at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com →</a> (free, no card) and create the key on <em>your own</em> account. It stays yours: every message a visitor sends spends a little of <strong>your</strong> free daily allowance, and when that runs out your link goes quiet until it resets. Keep the key to yourself — sharing the link is the point, sharing the key never is. <em>Any OpenAI-compatible provider works if you already have one — but DeepSeek needs paid credits, so don't start there today.</em></p></div></div>
       <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-body">
         <b>Add the key to Vercel — not to your code</b><p>On your project: <strong>Settings → Environment Variables</strong> → add <code>MODEL_API_KEY</code> with your key → <strong>Redeploy</strong>. Never paste a key into a file you commit: your repo is public, and keys in public repos get found and drained within hours.</p></div></div>
       <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-body">
@@ -588,9 +588,9 @@ git push</code></div></div>
 
       <div class="modal-highlight" style="margin-top:14px">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span><strong>Remember which one is the real one.</strong> The shared link runs on somebody else's computer, using a hosted model. The AI on <em>your</em> machine is the one that's free, offline, and private — nobody can meter it, price it, or switch it off. That's the one you actually built today.</span>
+        <span><strong>Remember which one is the real one.</strong> The shared link runs on somebody else's computer, on a hosted model metered against your own key. The AI on <em>your</em> machine is the one that's free, offline, and private — nobody can meter it, price it, or switch it off. That's the one you actually built today.</span>
       </div>
-      <p class="gp-page-sub" style="text-align:center;margin:14px 0 0">Stuck? Raise your hand — no dumb questions here.</p>
+      <p class="gp-page-sub" style="text-align:center;margin:14px 0 0">Stuck? Raise your hand — no question is too basic.</p>
     </section>
 
   </div>
@@ -675,7 +675,7 @@ git push</code></div></div>
       <div style="margin-top:10px;background:var(--dc-blue-light);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:4px">
         <div style="display:grid;grid-template-columns:auto 1fr;font-size:12.5px">
           <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);border-right:1px solid var(--border-light);font-weight:600;color:var(--text-primary);white-space:nowrap">Ask questions</div>
-          <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary)">Raise your hand any time — there are no dumb questions here.</div>
+          <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary)">Raise your hand any time — no question is too basic.</div>
           <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);border-right:1px solid var(--border-light);font-weight:600;color:var(--text-primary);white-space:nowrap">Help each other</div>
           <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary)">If your neighbor is stuck and you're not, help them. That's how open source works.</div>
           <div style="padding:9px 12px;border-bottom:1px solid var(--border-light);border-right:1px solid var(--border-light);font-weight:600;color:var(--text-primary);white-space:nowrap">Break things</div>
@@ -1510,7 +1510,7 @@ git push</code></div></div>
       <div class="settings-field">
         <label class="settings-label">What gets published</label>
         <div id="publish-summary"></div>
-        <span class="settings-hint">API keys are never written to this file — it goes to GitHub, where anyone could read it. Your hosted model's key belongs in a Vercel environment variable instead (step 4 below).</span>
+        <span class="settings-hint">API keys are never written to this file — it goes to GitHub, where anyone could read it. Your own hosted-model key belongs in a Vercel environment variable instead (step 4 below), where only the server can read it.</span>
       </div>
 
       <button class="settings-btn-primary" onclick="exportPublishConfig()" style="width:100%; margin-bottom:6px;">Download my-ai.json</button>
@@ -1528,12 +1528,12 @@ git push</code></div></div>
         <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-body">
           <b>Import the repo on Vercel</b><p>Add New → Project → pick your fork → Deploy.</p></div></div>
         <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-body">
-          <b>Give it a model to think with</b><p>Your visitors can't reach the Ollama on <em>your</em> laptop, so the live copy needs a hosted one. Get a free key at <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:var(--dc-blue)">console.groq.com</a> (no card), then on Vercel: Settings → Environment Variables → add <code>MODEL_API_KEY</code> → Redeploy.</p></div></div>
+          <b>Give it a model to think with</b><p>Your visitors can't reach the Ollama on <em>your</em> laptop, so the live copy needs a hosted one. Create a key on <em>your own</em> free account at <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:var(--dc-blue)">console.groq.com</a> (no card), then on Vercel: Settings → Environment Variables → add <code>MODEL_API_KEY</code> → Redeploy. The key is yours and so is the allowance it spends — every visitor's message draws on your free daily quota, which resets each day.</p></div></div>
       </div>
 
       <div class="modal-highlight">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        <span>Your published copy answers using that hosted model — so it works for anyone, anywhere, but it isn't the private one. <strong>The offline AI on this computer stays the real one.</strong> The live link just proves you built it.</span>
+        <span>Your published copy answers using that hosted model — so it works for anyone, anywhere, but it isn't the private one, and every message it answers spends a little of your own free allowance. <strong>The offline AI on this computer stays the real one</strong> — unmetered, however much you use it. The live link just proves you built it.</span>
       </div>
 
       <button class="settings-btn-secondary" onclick="previewAsVisitor()" style="width:100%; margin-top:12px;">Preview what visitors will see</button>
