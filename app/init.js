@@ -134,7 +134,6 @@ window.addEventListener('load', async () => {
 
   initModelRegistry();   // restore saved endpoints + discover live local models
   document.documentElement.style.setProperty('--dc-blue', BRAND_COLOR);
-  document.documentElement.style.setProperty('--dc-accent', ACCENT_COLOR);
 
   applyOllamaCmdHints();
 

@@ -158,7 +158,7 @@ function hostOf(url) {
 // of three sources in one answer come out identical, which reads as a bug. By
 // index they are always distinct, and a chip always matches its list entry
 // because both are keyed on the same number the model cites.
-const _SRC_TILE_COLORS = ['#4F46E5', '#5FBF6B', '#FF8A3D', '#00A8E8', '#7C5CFF', '#E8547C'];
+const _SRC_TILE_COLORS = ['#4F46E5', '#5FBF6B', '#FF8A3D', '#B8860B', '#7C5CFF', '#E8547C'];
 function sourceAvatar(host, index) {
   const h = host || '?';
   const bg = _SRC_TILE_COLORS[(index || 0) % _SRC_TILE_COLORS.length];
@@ -430,7 +430,7 @@ function promptCopyBtn(getText) {
 
 // Colours for the composition bar. Cycled by position so neighbouring segments
 // always differ; they carry no meaning beyond "this is a different part".
-const _PART_COLORS = ['#4F46E5', '#00A8E8', '#5FBF6B', '#FF8A3D', '#7C5CFF', '#E8547C', '#B8A05A'];
+const _PART_COLORS = ['#4F46E5', '#A78BFA', '#5FBF6B', '#FF8A3D', '#7C5CFF', '#E8547C', '#B8A05A'];
 
 function fmtChars(n) {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);

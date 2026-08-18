@@ -11,12 +11,23 @@
     --dc-blue-mid: color-mix(in srgb, var(--dc-blue) 85%, white);
     --dc-blue-tint: color-mix(in srgb, var(--dc-blue) 65%, white);
     --dc-blue-tint-light: color-mix(in srgb, var(--dc-blue) 45%, white);
-    --dc-accent: #00A8E8;
-    --dc-accent-light: #E0F5FC;
+    /* --dc-accent is NOT a second brand hue. Every one of its ~55 uses means
+       "the brand colour, but readable against this theme's ground" — that is a
+       lightness job, not a hue job. It used to be a fixed cyan (#00A8E8), which
+       is why a purple brand pick still left blue text scattered over the UI:
+       the swatch only relit --dc-blue and this stayed cyan forever. Deriving it
+       means one swatch pick carries every highlight, chip, icon and slider with
+       it. Light mode deepens the brand so it holds contrast on white panels;
+       dark mode lifts it off the violet ground (~5.2:1 on --bg-panel). */
+    --dc-accent: color-mix(in srgb, var(--dc-blue) 92%, black);
+    --dc-accent-light: color-mix(in srgb, var(--dc-blue) 10%, white);
     /* Rounding out the brand palette to match the DEVCON 17 mark's four-dot
        lockup (gold/orange/violet/green) so gradients can echo the logo
-       instead of staying blue-only. */
-    --dc-violet: #7C5CFF;
+       instead of staying blue-only. Gold/orange/green are fixed — they are the
+       logo's own dots and never read blue. Violet was the one dot that did
+       (#7C5CFF is blue-dominant), so it now tracks the brand as a lighter
+       companion; at the default brand it lands within a hair of the old hex. */
+    --dc-violet: color-mix(in srgb, var(--dc-blue) 72%, white);
     --dc-gold: #FFC93C;
     --dc-orange: #FF8A3D;
     --dc-green: #5FBF6B;
@@ -24,8 +35,17 @@
        bubbles laid on top of it read as raised surfaces instead of melting
        into the page — the old #F7F9FC was bright enough to glare and left
        cards with almost no edge. */
-    --bg-primary: #EBEFF9;
+    /* The neutral scale used to be a blue-gray family (#EBEFF9/#D0DDF0/
+       #8AA0B8/#4A6280/#0D1B2E). Against a purple brand every border, caption
+       and page edge read faintly blue — the "cold cast" half of the problem.
+       These are the violet-neutral counterparts, the same family the dark
+       theme already uses, and each one is equal or better on contrast. */
+    --bg-primary: #EDEBF7;
     --bg-panel: #FFFFFF;
+    /* Was referenced in 5+ places (guidebook tab pills, settings fields) but
+       never actually defined in either theme, so those surfaces silently
+       resolved to transparent. */
+    --bg-secondary: #F3F1FA;
     /* The sidebar/rail is a dark brand slab in both themes; a vertical
        blue→violet gradient (rather than a flat fill) ties it to the poster
        art and to the body glow behind it. */
@@ -34,11 +54,11 @@
         color-mix(in srgb, var(--dc-blue) 60%, black) 0%,
         color-mix(in srgb, var(--dc-blue) 42%, black) 52%,
         color-mix(in srgb, var(--dc-violet) 34%, black) 100%);
-    --text-primary: #0D1B2E;
-    --text-secondary: #4A6280;
-    --text-muted: #8AA0B8;
-    --border: #D0DDF0;
-    --border-light: #E8EFF8;
+    --text-primary: #171232;
+    --text-secondary: #5B5480;
+    --text-muted: #948EB4;
+    --border: #D7D2E8;
+    --border-light: #EAE7F4;
     --user-bubble: var(--dc-blue);
     --ai-bubble: #FFFFFF;
     /* Failure states used to be red end to end — surface, border, headings,
@@ -69,6 +89,10 @@
     --sb-text-faint: rgba(255,255,255,0.42);
     --sb-border: rgba(255,255,255,0.10);
     --sb-hover-bg: rgba(255,255,255,0.10);
+    /* The sidebar and icon rail are dark in BOTH themes, so anything tinted on
+       them needs the lifted accent even while the rest of the page is light —
+       --dc-accent's light-mode value would disappear against the slab. */
+    --sb-accent: color-mix(in srgb, var(--dc-blue) 55%, white);
 
     /* Ambient .bg-scene ink. Light mode can't use white dust (invisible on
        a near-white page) or gold (too pale), so both swap to saturated
@@ -94,7 +118,9 @@
     --user-bubble: var(--dc-blue);
     --ai-bubble: #221C46;
     --dc-blue-light: color-mix(in srgb, var(--dc-blue) 25%, var(--bg-panel));
-    --dc-accent-light: #241C4C;
+    --dc-accent: color-mix(in srgb, var(--dc-blue) 62%, white);
+    --dc-accent-light: color-mix(in srgb, var(--dc-blue) 10%, var(--bg-panel));
+    --bg-secondary: #1B1539;
     /* Lifted well off the deep violet ground — the light-mode red goes muddy
        against it, and the tints need more weight to stay visible. */
     /* Lifted off the deep violet ground, but not washed out: the previous
@@ -112,8 +138,8 @@
      17 poster, kept subtle so text and cards stay the primary focus. */
   [data-theme="dark"] body {
     background:
-      radial-gradient(1100px 750px at 12% -8%, rgba(124,92,255,0.22), transparent 60%),
-      radial-gradient(950px 700px at 92% 8%, rgba(0,168,232,0.16), transparent 55%),
+      radial-gradient(1100px 750px at 12% -8%, color-mix(in srgb, var(--dc-violet) 22%, transparent), transparent 60%),
+      radial-gradient(950px 700px at 92% 8%, color-mix(in srgb, var(--dc-accent) 16%, transparent), transparent 55%),
       radial-gradient(850px 650px at 100% 55%, rgba(255,138,61,0.10), transparent 55%),
       radial-gradient(900px 800px at 45% 115%, rgba(95,191,107,0.08), transparent 60%),
       radial-gradient(700px 600px at 0% 100%, rgba(255,201,60,0.07), transparent 55%),
@@ -244,7 +270,7 @@
      place so light mode's 2-stop blue→accent and dark mode's 3-stop
      blue→violet→gold both apply everywhere consistently, not just here. */
   .avatar.ai, .modal-logo, .dc-brand-gradient {
-    background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-accent) 60%, var(--dc-gold) 130%);
+    background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-violet) 60%, var(--dc-gold) 130%);
   }
   [data-theme="dark"] .avatar.ai,
   [data-theme="dark"] .modal-logo,
@@ -357,21 +383,21 @@
   }
 
   .model-badge {
-    background: rgba(0,168,232,0.12);
-    border: 1px solid rgba(0,168,232,0.25);
+    background: color-mix(in srgb, var(--sb-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sb-accent) 25%, transparent);
     border-radius: 20px;
     padding: 5px 10px 5px 8px;
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: rgba(0,168,232,0.9);
+    color: var(--sb-accent);
     font-weight: 500;
   }
   .model-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: #00A8E8;
+    background: var(--sb-accent);
     animation: pulse 2s infinite;
   }
   @keyframes pulse {
@@ -1518,7 +1544,7 @@
     transition: border-color 0.3s ease, box-shadow 0.4s ease;
   }
   [data-theme="dark"] .input-area {
-    box-shadow: 0 8px 40px rgba(0,168,232,0.1), 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 40px color-mix(in srgb, var(--dc-accent) 10%, transparent), 0 2px 8px rgba(0,0,0,0.2);
   }
   /* Hide footer details when floating — keep it compact like Gemini */
   .main.welcome-mode .legal-disclaimer {
@@ -1650,7 +1676,7 @@
 
   .send-btn {
     width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-accent) 100%);
+    background: linear-gradient(135deg, var(--dc-blue) 0%, var(--dc-violet) 100%);
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -3085,7 +3111,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(5, 15, 35, 0.72);
+    background: rgba(14, 9, 32, 0.72);
     z-index: 200;
     display: flex;
     align-items: center;
@@ -3529,8 +3555,8 @@
   /* PULL TERMINAL — mimics a terminal window; stays dark in both themes */
   .pull-terminal-card {
     max-width: 520px;
-    background: #0d1117;
-    border: 1px solid #30363d;
+    background: #141024;
+    border: 1px solid #332B57;
     border-radius: 12px;
     overflow: hidden;
     padding: 0;
@@ -3538,8 +3564,8 @@
   .pull-terminal-titlebar {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
-    background: #161b22;
-    border-bottom: 1px solid #30363d;
+    background: #1C1636;
+    border-bottom: 1px solid #332B57;
   }
   .pull-terminal-dots { display: flex; gap: 6px; flex-shrink: 0; }
   .pull-terminal-dots span { width: 10px; height: 10px; border-radius: 50%; display: block; }
@@ -3547,23 +3573,23 @@
   .pull-terminal-dots span:nth-child(2) { background: #ffbd2e; }
   .pull-terminal-dots span:nth-child(3) { background: #27c93f; }
   .pull-terminal-title {
-    flex: 1; font-family: var(--font-mono); font-size: 12px; color: #8b949e; text-align: center;
+    flex: 1; font-family: var(--font-mono); font-size: 12px; color: #948DBA; text-align: center;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .pull-terminal-close {
-    background: none; border: none; color: #8b949e; cursor: pointer; padding: 3px;
+    background: none; border: none; color: #948DBA; cursor: pointer; padding: 3px;
     display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;
   }
-  .pull-terminal-close:hover { background: #30363d; color: #e6edf3; }
+  .pull-terminal-close:hover { background: #332B57; color: #ECE9FA; }
   .pull-terminal-log {
     margin: 0; padding: 14px 16px;
     height: 260px; overflow-y: auto;
     font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
-    color: #c9d1d9; background: #0d1117;
+    color: #D5D0E8; background: #141024;
     white-space: pre-wrap; word-break: break-all;
   }
   .pull-terminal-log::-webkit-scrollbar { width: 4px; }
-  .pull-terminal-log::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+  .pull-terminal-log::-webkit-scrollbar-thumb { background: #332B57; border-radius: 2px; }
   .pull-term-line.ok  { color: #7ee787; font-weight: 700; }
   .pull-term-line.err { color: #ff7b72; font-weight: 700; }
   .rec-cpu-note { font-size: 11.5px; color: var(--text-muted); margin: 2px 0 8px; }
@@ -4029,7 +4055,7 @@
   .settings-modal {
     position: fixed;
     inset: 0;
-    background: rgba(5, 15, 35, 0.72);
+    background: rgba(14, 9, 32, 0.72);
     z-index: 500;
     display: none;
     align-items: center;
@@ -4513,7 +4539,7 @@
     content: '';
     position: absolute; left: -9px; top: 10px; bottom: 10px;
     width: 3px; border-radius: 3px;
-    background: var(--dc-accent);
+    background: var(--sb-accent);
   }
   .rail-spacer { flex: 1; }
   .rail-dot {
@@ -4617,7 +4643,7 @@
   .seg-tabs button.on {
     background: var(--bg-panel);
     color: var(--text-primary);
-    box-shadow: 0 1px 4px rgba(22,32,46,0.1);
+    box-shadow: 0 1px 4px rgba(30,22,58,0.10);
   }
   [data-theme="dark"] .seg-tabs button.on { background: var(--bg-primary); }
   #sidebar[data-tab="sources"] .sidebar-section,
