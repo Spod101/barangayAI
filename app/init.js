@@ -159,6 +159,11 @@ window.addEventListener('load', async () => {
     else renderSourcesPanel();
   }
 
+  // After settings, not before: the Review tab's decks live in the DB and its
+  // engine is chosen from _GROQ_KEY and the active source list, none of which
+  // exist until the two branches above have run.
+  initReview();
+
   if (SUGGESTIONS) {
     const grid = document.querySelector('.suggestion-chips');
     if (grid) {

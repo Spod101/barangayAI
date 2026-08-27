@@ -171,21 +171,30 @@ function persistKBMaster() {
 
 // ── DEFAULT (SEEDED) SOURCE ────────────────────────────────────────────
 // Ships one source out of the box so every fork/clone already has grounded
-// answers without anyone uploading a file first. The text is fetched from
-// the file in assets/ rather than inlined here, so the markdown stays the
-// single source of truth — edit the .md, reload, and the seed follows.
+// answers without anyone uploading a file first. It is also what the Review
+// tab builds its first deck from, which is why the default is now a study
+// guide rather than a brand document: a seed that cannot be turned into
+// flashcards leaves half the app looking broken on a fresh install.
+// The text is fetched from the file in assets/ rather than inlined here, so
+// the markdown stays the single source of truth — edit the .md, reload, and
+// the seed follows.
 // Requires the app to be served over http:// (see README "Quick start");
 // fetch() is blocked at the file:// origin, so opening index.html straight
 // off disk leaves the Sources panel empty.
 const SEED_SOURCE = {
-  name: 'DEVCON-17-Brand-Kit-Aug-6-2026.md',
-  path: 'assets/DEVCON-17-Brand-Kit-Aug-6-2026.md',
+  name: 'Study-Buddy-Review-Guide.md',
+  path: 'assets/Study-Buddy-Review-Guide.md',
 };
 
-// The placeholder that shipped before the brand kit existed. Installs that
-// still carry it untouched get upgraded in place; anyone who deleted it
-// keeps their empty library.
-const LEGACY_SEED_NAME = 'devcon-barangay-ai-overview.pdf';
+// Every seed that shipped as the default before the current one. A library
+// holding nothing but one of these never chose it — it was simply whatever the
+// default was at install time — so it gets upgraded in place to the current
+// seed. Anyone who deleted the old default keeps their empty library, and
+// anyone who added sources of their own beside it keeps those untouched.
+const LEGACY_SEED_NAMES = new Set([
+  'devcon-barangay-ai-overview.pdf',
+  'DEVCON-17-Brand-Kit-Aug-6-2026.md',
+]);
 
 async function loadSeedText() {
   const res = await fetch(SEED_SOURCE.path, { cache: 'no-cache' });
@@ -213,7 +222,7 @@ async function seedDefaultSourcesIfNeeded(settings) {
   if (!window.BarangayDB) return null;
 
   const existing = Array.isArray(settings.training_files) ? settings.training_files : [];
-  const onlyLegacySeed = existing.length === 1 && existing[0]?.name === LEGACY_SEED_NAME;
+  const onlyLegacySeed = existing.length === 1 && LEGACY_SEED_NAMES.has(existing[0]?.name);
 
   if (settings.sources_seeded && !onlyLegacySeed) return null;
   if (!settings.sources_seeded && existing.length && !onlyLegacySeed) return null;

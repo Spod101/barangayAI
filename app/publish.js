@@ -76,8 +76,14 @@ function hydratePublishedSettings(cfg) {
   // my-ai.json — and a 500-char name would run clean off the chat label. CSS
   // truncates it visually; this stops it being carried around at full length.
   if (typeof s.ai_name === 'string') s.ai_name = s.ai_name.slice(0, 60);
-  // A visitor must never inherit the owner's keys or spend their quota.
+  // A visitor must never inherit the owner's keys or spend their quota. This is
+  // the second of two defences for each key, not the only one: buildPublishConfig()
+  // never writes them in the first place. Both exist because a my-ai.json is a
+  // file from outside this browser — a hand-edited or older-format one can carry
+  // anything, and the read path should not trust the write path to have been
+  // careful. Any future key setting belongs in both places.
   delete s.tavily_api_key;
+  delete s.groq_api_key;
   s.web_search_enabled = false;
   return s;
 }
@@ -182,7 +188,10 @@ function buildPublishConfig() {
       ai_avatar:        s.ai_avatar || '',
       ai_tone:          s.ai_tone || '',
       ai_knowledge:     s.ai_knowledge || '',
-      brand_color:      s.brand_color || BRAND_COLOR,
+      // Normalised for the same reason applySettings() does it: an install that
+      // predates the current brand default has that default sitting in storage
+      // as though it were a choice, and publishing it would ship the old colour.
+      brand_color:      normaliseBrandColor(s.brand_color) || BRAND_COLOR,
       welcome_greeting: s.welcome_greeting || '',
       reply_language:   s.reply_language || 'english',
       training_notes:   s.training_notes || '',

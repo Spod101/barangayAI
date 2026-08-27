@@ -9,13 +9,26 @@ function saveSettings(s) {
   if (window.BarangayDB) window.BarangayDB.dbSaveSettings(s);
 }
 
+// A stored brand_color of exactly the old default means "this install predates
+// the green theme", not "the user picked violet" — the two are indistinguishable
+// in the data, and treating them the same would leave every existing install on
+// the old brand while every new one came up on the new one. Someone who really
+// wants that violet can still pick it from the swatches; it is saved from the
+// colour input, and re-picking it writes the same value back, so the only cost
+// of guessing wrong here is one swatch click.
+function normaliseBrandColor(c) {
+  if (!c) return '';
+  return String(c).toUpperCase() === LEGACY_BRAND_COLOR ? BRAND_COLOR : c;
+}
+
 function applySettings(s) {
   // Resolve active persona (overrides name + system prompt when set)
   const _personas = Array.isArray(s.personas) ? s.personas : [];
   const _activePersona = _personas.find(p => p.id === s.active_persona) || null;
 
-  if (s.brand_color) {
-    const c = s.brand_color;
+  const _brand = normaliseBrandColor(s.brand_color);
+  if (_brand) {
+    const c = _brand;
     document.documentElement.style.setProperty('--dc-blue', c);
     document.documentElement.style.setProperty('--dc-blue-dark',   shadeColor(c, -20));
     document.documentElement.style.setProperty('--dc-blue-mid',    shadeColor(c,  10));
@@ -49,6 +62,11 @@ function applySettings(s) {
   window._GREETING_ACTIVE = s.welcome_greeting || null;
   // Web search (Tavily) — a key is required for it to actually run
   window._TAVILY_KEY = s.tavily_api_key || '';
+  // Groq — optional, and read by app/review.js only. Set, it becomes the engine
+  // that writes flashcards; unset, Review borrows whatever model the app has
+  // already selected. Chat is deliberately left alone either way: a key pasted
+  // here should not silently move every conversation off the local model.
+  window._GROQ_KEY = s.groq_api_key || '';
   window._WEB_SEARCH_ENABLED = (s.web_search_enabled === true);
   window._THINKING_ENABLED = (s.thinking_enabled === true);
   // Off unless explicitly switched on. Every answer would otherwise cost a
@@ -61,6 +79,12 @@ function applySettings(s) {
   refreshAIIdentity();
   if (document.getElementById('welcome-screen')) resetWelcomeScreen();
   renderSourcesPanel();
+  // The Review tab reads _GROQ_KEY and the active source list, and both were
+  // just rewritten. Guarded rather than assumed: visitor mode applies published
+  // settings from app/init.js before app/review.js has initialised, so these
+  // are legitimately absent on the first call.
+  if (typeof reviewSyncSourcesHint === 'function') reviewSyncSourcesHint();
+  if (typeof reviewRefreshEngine === 'function') reviewRefreshEngine();
 }
 
 function shadeColor(hex, pct) {
@@ -271,7 +295,7 @@ function openSettings() {
   window._BASE_NAME_DRAFT = s.ai_name || AI_NAME;
   window._BASE_TONE_DRAFT = s.ai_tone || AI_TONE || '';
   window._AVATAR_DRAFT    = s.ai_avatar || '';
-  brandInput.value     = s.brand_color      || BRAND_COLOR;
+  brandInput.value     = normaliseBrandColor(s.brand_color) || BRAND_COLOR;
   greetInput.value     = s.welcome_greeting || '';
   if (knowledgeInput) knowledgeInput.value = s.ai_knowledge || '';
   const creatorInput = document.getElementById('settings-creator-name');
@@ -304,6 +328,10 @@ function openSettings() {
   if (wsToggle) wsToggle.classList.toggle('on', s.web_search_enabled === true);
   const wsKey = document.getElementById('settings-tavily-key');
   if (wsKey) wsKey.value = s.tavily_api_key || '';
+  // Groq key — same tab, same treatment as the Tavily key: local to this
+  // device, never published.
+  const groqKey = document.getElementById('settings-groq-key');
+  if (groqKey) groqKey.value = s.groq_api_key || '';
   const fuToggle = document.getElementById('settings-followups');
   if (fuToggle) fuToggle.classList.toggle('on', s.followups_enabled === true);
 
@@ -378,6 +406,8 @@ function resetSettingsForm() {
   if (wsToggle) wsToggle.classList.remove('on');
   const wsKey = document.getElementById('settings-tavily-key');
   if (wsKey) wsKey.value = '';
+  const groqKey = document.getElementById('settings-groq-key');
+  if (groqKey) groqKey.value = '';
   const fuToggle = document.getElementById('settings-followups');
   if (fuToggle) fuToggle.classList.remove('on');
   window._TRAINING_FILES_DRAFT = [];
@@ -423,6 +453,7 @@ function applyAndSaveSettings() {
     followups_enabled: !!document.getElementById('settings-followups')?.classList.contains('on'),
     thinking_enabled:   !!window._THINKING_ENABLED,
     tavily_api_key:   (document.getElementById('settings-tavily-key')?.value.trim() || ''),
+    groq_api_key:     (document.getElementById('settings-groq-key')?.value.trim() || ''),
   };
   saveSettings(s);
   applySettings(s);
