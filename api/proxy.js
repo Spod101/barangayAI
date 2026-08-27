@@ -46,7 +46,20 @@ let _modelCache = { at: 0, ids: null };
 // provider account; visitors never see it and never pay for it. The client
 // cannot ask for a huge completion, cannot send an enormous prompt, and
 // cannot name a model the provider does not actually serve.
-const MAX_TOKENS_CAP = 512;
+// 2048, not 512. The old ceiling predated reasoning models and quietly broke
+// against them: max_tokens on an OpenAI-compatible endpoint bounds reasoning
+// tokens AND visible output together, and the default model here
+// (openai/gpt-oss-20b) reasons at 'medium' unless told otherwise. A structured
+// request — "reply with a JSON array of five flashcards" — measured 510 of 512
+// tokens spent thinking and returned an EMPTY string with finish_reason
+// 'length'. Not a truncated answer, no answer, and a 200 status on the way out.
+//
+// A cap that stops the app's own features from returning anything is not
+// protecting the owner's quota, it is spending it on nothing. The real backstop
+// was always the provider's own daily limit; this only has to stop a single
+// request being enormous, and 2048 does that while leaving room for a model to
+// think and then still speak.
+const MAX_TOKENS_CAP = 2048;
 const MAX_BODY_BYTES = 128 * 1024;
 
 // Which environment variables count as "the key". MODEL_API_BASE is provider
@@ -153,6 +166,25 @@ async function sendModels(res, cfg) {
 // upstream — see buildPayload.
 const PASSTHROUGH_NUMBERS = ['temperature', 'top_p', 'presence_penalty', 'frequency_penalty', 'seed'];
 
+// Raising max_tokens gives a reasoning model room to think; this lets a caller
+// ask it to think less in the first place, which is the better lever for a task
+// whose answer is short and structured. Groq documents these values for the
+// gpt-oss models ('medium' is the default, which is why an untouched request
+// reasons at length), and 'none'/'default' for Qwen.
+//
+// Validated against a fixed set rather than forwarded as given: this reaches a
+// provider verbatim, and an arbitrary string in a field the provider parses is
+// exactly the shape of input that earns a 400 for everybody. An unrecognised
+// value is dropped, which lands on the provider's own default — the behaviour
+// before this existed.
+//
+// Not every OpenAI-compatible server knows this field, and the ones that don't
+// answer 400. Only app/review.js sends it, only on cloud engines, and a failed
+// batch there is already handled (that batch is skipped and reported) — so on an
+// exotic MODEL_API_BASE this degrades to "cards took another attempt", not to a
+// broken deploy.
+const REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'default']);
+
 // role + content only. Extra per-message fields are dropped on purpose:
 // `messages[].name`, for one, is a documented 400 on Groq.
 function sanitizeMessages(input) {
@@ -204,6 +236,9 @@ function buildPayload(body, model) {
     if (body.stream_options && typeof body.stream_options === 'object') {
       payload.stream_options = { include_usage: body.stream_options.include_usage === true };
     }
+  }
+  if (typeof body.reasoning_effort === 'string' && REASONING_EFFORTS.has(body.reasoning_effort)) {
+    payload.reasoning_effort = body.reasoning_effort;
   }
   if (typeof body.stop === 'string') payload.stop = body.stop;
   else if (Array.isArray(body.stop)) {

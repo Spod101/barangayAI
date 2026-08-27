@@ -457,13 +457,27 @@ async function reviewChat(eng, messages, maxTokens) {
     max_tokens: maxTokens,
     stream: false,
   };
-  // Ollama-only knobs. Cloud providers answer 400 for fields they do not know,
-  // and api/proxy.js drops them anyway, so they are only ever sent to a local
-  // endpoint — where a reasoning model would otherwise spend the whole token
-  // budget thinking and return no JSON at all.
-  if (typeof isOllamaEndpoint === 'function' && eng.via === 'app' && isOllamaEndpoint(eng.base, window.ACTIVE_KIND)) {
+  const isLocalOllama = typeof isOllamaEndpoint === 'function'
+    && eng.via === 'app'
+    && isOllamaEndpoint(eng.base, window.ACTIVE_KIND);
+
+  if (isLocalOllama) {
+    // Ollama-only knobs. Cloud providers answer 400 for fields they do not know,
+    // and api/proxy.js drops them anyway, so they are only ever sent to a local
+    // endpoint — where a reasoning model would otherwise spend the whole token
+    // budget thinking and return no JSON at all.
     payload.chat_template_kwargs = { enable_thinking: false };
     payload.messages = payload.messages.concat([{ role: 'user', content: '/no_think' }]);
+  } else {
+    // The same failure, on the cloud path, needs the standard field rather than
+    // Ollama's. Without it this request measured 510 of its 512 tokens spent
+    // reasoning and returned an empty string — a deck of zero cards, from a
+    // request that reported HTTP 200.
+    //
+    // Writing a flashcard is not a task that needs deliberation: the answer is
+    // short, its shape is dictated, and the material is supplied. Extended
+    // reasoning here buys nothing and costs the entire budget.
+    payload.reasoning_effort = 'low';
   }
 
   const headers = { 'Content-Type': 'application/json' };
@@ -525,8 +539,7 @@ async function reviewGenerate() {
     reviewStatus('Give it a topic, or add a Source to build from.', 'warn');
     return;
   }
-
-  const cite = reviewCiteLabel(ground.cites);
+    const cite = reviewCiteLabel(ground.cites);
 
   _reviewBusy = true;
   reviewSetGenerating(true);
