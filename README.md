@@ -141,10 +141,14 @@ Everything you customize is saved **in your browser**, not in the code — that'
 
 ```
 MODEL_API_KEY    required — your own free key from console.groq.com (no card)
+                 GROQ_API_KEY is accepted as an alias, since that is the name
+                 Groq's own docs use. MODEL_API_KEY wins if both are set.
 MODEL_API_BASE   optional — defaults to https://api.groq.com/openai/v1
 MODEL_NAME       optional — which model(s) to offer, comma-separated.
                  Unset = all of them, and visitors pick.
 ```
+
+> **Tick every environment.** Vercel scopes each variable to **Production**, **Preview** and **Development** separately, and a key set for Production only leaves preview builds with no key at all — the site loads but answers "This AI has no model connected yet". Variables also only apply to builds created *after* they are saved, so **redeploy** once you add one. If you do hit that message, it now names the environment it was missing from, which is usually the whole answer.
 
 The key is **yours** — you create it on your own provider account, and every message a visitor sends draws on your allowance, not anyone else's. It stays in Vercel and is only ever read server-side by [`api/proxy.js`](api/proxy.js). **Never commit one** — public repos get scraped for keys within hours. `my-ai.json` is written without any key by design.
 

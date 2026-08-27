@@ -49,10 +49,19 @@ let _modelCache = { at: 0, ids: null };
 const MAX_TOKENS_CAP = 512;
 const MAX_BODY_BYTES = 128 * 1024;
 
+// Which environment variables count as "the key". MODEL_API_BASE is provider
+// agnostic, so MODEL_API_KEY is the name the docs teach — but the overwhelmingly
+// common case is a Groq key, and GROQ_API_KEY is the name Groq's own docs use and
+// therefore the name people actually type into Vercel. Accepting both costs one
+// line and removes an entire category of "I added the key and it still says no
+// model is connected", which is indistinguishable from a broken deploy and is
+// almost always just a variable named the other thing.
+const KEY_VARS = ['MODEL_API_KEY', 'GROQ_API_KEY'];
+
 function config() {
   return {
     base: (process.env.MODEL_API_BASE || DEFAULT_BASE).replace(/\/+$/, ''),
-    key: process.env.MODEL_API_KEY || '',
+    key: (KEY_VARS.map(n => process.env[n]).find(v => v && v.trim()) || '').trim(),
     // MODEL_NAME is optional and means "offer exactly these". Unset is a
     // first-class state, not a missing setting: leave it out and visitors get
     // every chat model the key can reach. Comma-separated for a shortlist;
@@ -230,10 +239,27 @@ module.exports = async function handler(req, res) {
   // student pushed before adding the key), so it gets a message the app
   // can show a human rather than a raw network failure.
   if (!cfg.key) {
+    // Naming the environment is the whole point of this branch. Vercel scopes
+    // variables to Production / Preview / Development separately, so the single
+    // most common cause of landing here is a key that IS set — just not for the
+    // environment being viewed. "No key" and "key set on the other environment"
+    // produce an identical failure, and without this they are indistinguishable
+    // from the browser; the owner re-checks the dashboard, sees the variable
+    // sitting right there, and concludes the deploy is broken.
+    //
+    // Variable NAMES only, never values. These two names are documented in the
+    // README, so echoing them tells an attacker nothing it could not already
+    // read — and it tells the owner exactly which spelling was found.
+    const env = process.env.VERCEL_ENV || 'unknown';
     res.status(503).json({
       error: {
-        message: 'This AI has no model connected yet. The owner needs to add a MODEL_API_KEY environment variable on Vercel and redeploy.',
+        message:
+          `This AI has no model connected yet. No API key is visible to the "${env}" environment on Vercel. ` +
+          `Add ${KEY_VARS[0]} (or ${KEY_VARS[1]}) under Settings → Environment Variables, ` +
+          `make sure the "${env}" checkbox is ticked, then redeploy — variables only apply to builds created after they are saved.`,
         code: 'model_not_configured',
+        environment: env,
+        accepted_variable_names: KEY_VARS,
       },
     });
     return;
