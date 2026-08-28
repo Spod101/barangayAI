@@ -5108,6 +5108,89 @@
   [data-theme="dark"] .input-box { box-shadow: 0 10px 34px rgba(0,0,0,0.45); }
   .input-tip, .legal-disclaimer-inner { max-width: 720px; margin-left: auto; margin-right: auto; }
 
+  /* ── VISITOR PICKER: TWO ENGINES ─────────────────────────────────────
+     The published picker carries the demo's whole argument in miniature: the
+     owner's hosted model and the visitor's own machine, named as different
+     things, one click apart. "Recent" is the owner's framing and says nothing
+     here, so it gives way to the group labels. */
+  body.visitor-mode .model-dd-recent-label { display: none; }
+  .model-dd-group-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    padding: 9px 4px 3px;
+  }
+  .model-dd-list > .model-dd-group-label:first-child { padding-top: 2px; }
+
+  /* Dashed, so it reads as an invitation rather than as one more model that is
+     already there. */
+  .model-dd-connect {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 2px;
+    border: 1px dashed var(--border);
+    border-radius: 9px;
+    background: none;
+    font-family: var(--font-main);
+    text-align: left;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .model-dd-connect:hover {
+    border-color: var(--dc-blue);
+    color: var(--dc-blue);
+    background: var(--bg-primary);
+  }
+  .model-dd-connect-ico { display: inline-flex; opacity: 0.8; flex-shrink: 0; }
+
+  /* "No model found on this computer" — the one dialog a visitor can open. */
+  .connect-local-steps {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+  .connect-local-steps b { color: var(--text-primary); font-weight: 700; }
+  .connect-local-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+  .connect-local-hint a { color: var(--dc-blue); font-weight: 600; text-decoration: none; }
+  .connect-local-hint a:hover { text-decoration: underline; }
+  .connect-local-hint b { color: var(--text-secondary); font-weight: 700; word-break: break-all; }
+  .connect-local-hint code { font-family: var(--font-mono, ui-monospace, monospace); }
+  .connect-local-copy {
+    margin-top: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: none;
+    font-family: var(--font-main);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .connect-local-copy:hover { border-color: var(--dc-blue); color: var(--dc-blue); }
+  .connect-local-note { font-size: 11.5px; line-height: 1.55; color: var(--text-muted); }
+  .connect-local-actions { display: flex; gap: 8px; }
+  .connect-local-actions .settings-btn-primary { width: auto; flex: 1; padding: 9px; font-size: 12.5px; }
+  [data-theme="dark"] .connect-local-hint a { color: var(--dc-accent); }
+
 /* ── PUBLISHED / VISITOR MODE ─────────────────────────────────────────
    A student's deployed AI: usable by anyone, editable by no one. The
    owner-only chrome is REMOVED from the DOM by lockVisitorUI() (see
