@@ -5063,6 +5063,11 @@
     box-shadow: none;
     border-radius: 0;
     padding: 2px 0 0;
+    /* Fills the column instead of shrink-to-fitting its text. Without this the
+       answer's width sets the trace header's width, so the right-aligned model
+       tag landed in a different spot on every message — it now sits at the
+       column's right edge, in the same place down the whole conversation. */
+    width: 100%;
   }
   .bubble.user {
     background: var(--bg-primary);
