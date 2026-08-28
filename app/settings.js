@@ -267,11 +267,18 @@ function updateSettingsPreview() {
 // Far-right position of the Max Tokens slider means "No limit"
 const MAX_TOKENS_SLIDER_MAX = 4224;
 
-// Out-of-the-box model settings: the middle of the temperature scale
-// ("Balanced") and no cap on reply length. Anyone who wants a shorter or
-// sharper answer can move the sliders; nobody should have to move one to stop
-// a reply being cut off mid-sentence.
-const DEFAULT_TEMPERATURE = 1.0;
+// Out-of-the-box model settings: a low temperature and no cap on reply length.
+// Anyone who wants a longer or looser answer can move the sliders; nobody
+// should have to move one to stop a reply being cut off mid-sentence.
+//
+// The default was briefly 1.0 — the middle of the slider, labelled "Balanced".
+// It reads balanced and isn't: we send `temperature` and nothing else, so
+// `top_p` stays at the server's default of 1.0 and every token is drawn from
+// the full untruncated vocabulary. A 4-bit model on lab hardware answers that
+// with word salad — fragments and single letters, not wrong facts. "Balanced"
+// is a property of the whole sampler, not of one number, and the middle of a
+// slider is not a tuning.
+const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_MAX_TOKENS  = null;   // null = No limit
 
 function updateTemperatureLabel(val) {
