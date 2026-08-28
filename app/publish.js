@@ -125,10 +125,19 @@ function hideOwnerPitchFooter() {
   if (tip) tip.remove();
 }
 
+// Which engine is answering right now. '/api' is the one base that is
+// definitionally not on this computer — anything else in a visitor's picker is
+// an Ollama they connected themselves. Read as cloud until a model is actually
+// selected: ACTIVE_BASE still holds the loopback default at that point, and
+// claiming "your machine" before discovery lands would be a lie with good timing.
+function visitorEngineIsLocal() {
+  return !!(window.IS_VISITOR && window.ACTIVE_MODEL && (window.ACTIVE_BASE || '') !== '/api');
+}
+
 // The camp's whole claim is "free, private, no subscription" — and on a published
-// site that is FALSE: replies come from a hosted model through /api. Saying
-// so plainly is the difference between the demo proving the lesson and
-// quietly contradicting it.
+// site answering through /api that is FALSE. Rather than assert either version,
+// the copy reports which engine just answered, so switching in the picker is
+// what makes the claim true and the visitor watches it happen.
 // On a published site the credit splits in two so the maker's name can carry
 // the weight: a badge with who built it, the honest small print under it.
 // Local and unpublished copies keep the plain one-line caption.
@@ -136,12 +145,33 @@ function welcomeBriefHTML() {
   const cfg = window.PUBLISHED_CONFIG;
   if (!window.IS_VISITOR || !cfg) return 'Built by Filipino developers · 100% local, no cloud';
   const who = (cfg.creator_name || '').trim();
+  const engine = visitorEngineIsLocal() ? 'answering on your machine' : 'answering from the cloud';
   return `
     <span class="welcome-credit">
       <span class="welcome-credit-label">Built by</span>
       <span class="welcome-credit-name">${escHtml(who || 'a student')}</span>
     </span>
-    <span class="welcome-credit-note">at a DEVCON Barangay AI Code Camp · public demo, hosted model</span>`;
+    <span class="welcome-credit-note">at a DEVCON Barangay AI Code Camp · ${engine}</span>`;
+}
+
+function publishedCreditNoteHTML() {
+  const cfg = window.PUBLISHED_CONFIG || {};
+  const who = (cfg.creator_name || '').trim();
+  const build = '<a href="https://github.com/Spod101/barangayAI" target="_blank" rel="noopener">Build your own →</a>';
+  if (visitorEngineIsLocal()) {
+    return `Answering on your own computer — offline, free, nothing you type leaves this machine. ${build}`;
+  }
+  return `Answering from a hosted model. The real one runs offline on ${escHtml(who || 'their')}${who ? "'s" : ''} own computer — free, private, no subscription. ${build}`;
+}
+
+// Called by selectModel() (app/models.js) after every switch. Both lines make a
+// claim about where the reply came from, so both have to move together.
+function refreshVisitorEngineLabels() {
+  if (!window.IS_VISITOR) return;
+  const note = document.getElementById('published-credit-note');
+  if (note) note.innerHTML = publishedCreditNoteHTML();
+  const brief = document.getElementById('welcome-brief');
+  if (brief) brief.innerHTML = welcomeBriefHTML();
 }
 
 function renderPublishedCredit() {
@@ -156,7 +186,7 @@ function renderPublishedCredit() {
   el.id = 'published-credit';
   el.innerHTML = `
     <div class="published-credit-main">${escHtml(name)} — built by ${escHtml(who || 'a student')} at a DEVCON Barangay AI Code Camp</div>
-    <div class="published-credit-note">This public demo answers using a hosted model. The real one runs offline on ${escHtml(who || 'their')}${who ? "'s" : ''} own computer — free, private, no subscription. <a href="https://github.com/Spod101/barangayAI" target="_blank" rel="noopener">Build your own →</a></div>`;
+    <div class="published-credit-note" id="published-credit-note">${publishedCreditNoteHTML()}</div>`;
   host.appendChild(el);
 }
 
@@ -284,7 +314,8 @@ function updatePublishSummary() {
   ];
   el.innerHTML = rows.map(([k, v]) =>
     `<div class="publish-row"><b>${escHtml(k)}</b><span>${v}</span></div>`).join('')
-    + `<div class="publish-row"><b>Your API keys</b><span>never included — they stay on Vercel</span></div>`;
+    + `<div class="publish-row"><b>Your API keys</b><span>never included — they stay on Vercel</span></div>`
+    + `<div class="publish-row"><b>Visitors</b><span>chat on your hosted model, or connect their own Ollama to compare</span></div>`;
 }
 
 function previewAsVisitor() {
@@ -302,6 +333,9 @@ window.hydratePublishedSettings = hydratePublishedSettings;
 window.lockVisitorUI          = lockVisitorUI;
 window.hideOwnerPitchFooter   = hideOwnerPitchFooter;
 window.welcomeBriefHTML       = welcomeBriefHTML;
+window.visitorEngineIsLocal   = visitorEngineIsLocal;
+window.publishedCreditNoteHTML = publishedCreditNoteHTML;
+window.refreshVisitorEngineLabels = refreshVisitorEngineLabels;
 window.exportPublishConfig    = exportPublishConfig;
 window.updatePublishSummary   = updatePublishSummary;
 window.gotoSettingsField      = gotoSettingsField;

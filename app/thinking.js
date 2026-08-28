@@ -764,11 +764,34 @@ async function sendMessage(anchor) {
       const msg = fetchErr.message || '';
       let errorData = {};
 
+      // Which engine just failed decides who can act on the advice.
+      //
+      // A visitor who connected their OWN Ollama can fix it — but not with the
+      // diagnoses further down: those reach for start-ollama.sh in a project
+      // folder they never cloned, and for the wildcard OLLAMA_ORIGINS, which is
+      // not a thing to hand a stranger (see ollamaStartCmdForOrigin). Their
+      // version is short, scoped to this origin, and offers the way back to the
+      // hosted model.
+      if (window.IS_VISITOR && window.visitorEngineIsLocal && window.visitorEngineIsLocal()) {
+        removeTypingIndicator();
+        renderErrorBubble({
+          title: 'Your own model stopped answering',
+          desc: 'The request to Ollama on this computer didn\'t come back. It runs on your machine, so you are the one who can start it again — or switch back to the hosted model and carry on.',
+          steps: [
+            { text: 'Start Ollama again, with this page allowed in:', code: ollamaStartCmdForOrigin(location.origin) },
+            { text: 'Reopen the model picker and choose “Check again”' },
+            { text: 'Or pick the hosted model in that same list to keep chatting now' },
+          ],
+        });
+        setConnected(false);
+        return;
+      }
+
       // Every diagnosis below tells the reader to open a terminal and
       // restart Ollama — correct for a student on their own machine, and
       // useless to a visitor on someone's published link, who has neither.
-      // Visitors get one honest message aimed at the only person who can
-      // actually fix it: the owner.
+      // Visitors on the hosted model get one honest message aimed at the only
+      // person who can actually fix it: the owner.
       if (window.IS_VISITOR) {
         // Each state names the one person who can fix it and what they must
         // do. The catch-all stays vague on purpose — a visitor cannot act on

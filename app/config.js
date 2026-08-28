@@ -39,6 +39,19 @@ const OLLAMA_RESTART_CMD = IS_WINDOWS
   ? 'Stop-Process -Name "ollama*" -Force -ErrorAction SilentlyContinue; $env:OLLAMA_ORIGINS="*"; ollama serve'
   : 'pkill -f ollama; OLLAMA_ORIGINS=* ollama serve';
 
+// Same idea, scoped to ONE origin. A visitor connecting their own Ollama to
+// somebody's published site must never be handed OLLAMA_ORIGINS="*": Ollama's
+// API is unauthenticated and includes /api/pull and /api/delete, so a wildcard
+// leaves their local model open to every site they visit afterwards. The
+// published origin is the only one that needs to get in, and it's the one
+// origin we can name exactly.
+function ollamaStartCmdForOrigin(origin) {
+  const o = origin || location.origin;
+  return IS_WINDOWS
+    ? `$env:OLLAMA_ORIGINS="${o}"; ollama serve`
+    : `OLLAMA_ORIGINS=${o} ollama serve`;
+}
+
 // Sets OLLAMA_ORIGINS permanently so the normal Ollama app (tray/menu bar)
 // is browser-reachable on every boot — after this, no manual serve at all.
 const OLLAMA_PERSIST_CMD = IS_WINDOWS

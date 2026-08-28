@@ -319,13 +319,17 @@ function renderModelList(filter) {
         return;
       }
     }
-    list.innerHTML = `<div class="model-dd-empty">${hasAny ? 'No models enabled — turn some on in “Add Models”' : 'No models found'}</div>`;
+    // "Add Models" is owner-only chrome and doesn't exist for a visitor, so
+    // pointing them at it would name a door that isn't in the room.
+    const empty = window.IS_VISITOR ? 'No models match'
+      : (hasAny ? 'No models enabled — turn some on in “Add Models”' : 'No models found');
+    list.innerHTML = `<div class="model-dd-empty">${empty}</div>`;
     return;
   }
   // Badges are computed over ALL enabled models (not the filtered rows) so
   // "Recommended" doesn't jump around while the user types in the search box.
   const badges = computeModelBadges(MODEL_LIST.filter(m => m.enabled !== false));
-  list.innerHTML = rows.map(m => {
+  const rowHTML = m => {
     const b = badges.get(m.id);
     return `
     <button class="model-dropdown-opt${window.ACTIVE_MODEL === m.model ? ' active' : ''}" onclick="selectModelFromDropdown('${m.id}')">
@@ -337,7 +341,38 @@ function renderModelList(filter) {
       ${b ? `<span class="model-dd-badge ${b.cls}">${b.label}</span>` : ''}
       <span class="model-dd-dot ${modelDotClass(m)}" title="${modelDotLabel(m)}"></span>
     </button>`;
-  }).join('');
+  };
+  // A visitor's picker is where the demo makes its argument: the owner's hosted
+  // model and the visitor's own machine, named as two different things, one
+  // click apart. Owners keep the flat list — they have the endpoint manager for
+  // structure, and grouping a local-only list by "where" says nothing.
+  list.innerHTML = window.IS_VISITOR
+    ? visitorGroupedListHTML(rows, rowHTML)
+    : rows.map(rowHTML).join('');
+}
+
+// Two named groups plus the invitation. The connect row stays after a local
+// model is connected — that's where "I just pulled another one" goes, and a
+// visitor who stopped Ollama needs a way back in.
+function visitorGroupedListHTML(rows, rowHTML) {
+  const cloud = rows.filter(m => m.base === '/api');
+  const local = rows.filter(m => m.base !== '/api');
+  const out = [];
+  if (cloud.length) {
+    out.push(`<div class="model-dd-group-label">Hosted · the owner&rsquo;s cloud key</div>`);
+    out.push(cloud.map(rowHTML).join(''));
+  }
+  out.push(`<div class="model-dd-group-label">Your machine · offline, free</div>`);
+  if (local.length) out.push(local.map(rowHTML).join(''));
+  out.push(`
+    <button class="model-dd-connect" id="model-dd-connect" onclick="connectLocalModel()">
+      <span class="model-dd-connect-ico">${_epIconLocal}</span>
+      <span class="model-dd-meta">
+        <span class="model-dd-name">${local.length ? 'Check again' : 'Connect your own Ollama'}</span>
+        <span class="model-dd-endpoint">${local.length ? 'look for newly pulled models' : 'nothing you type would leave this computer'}</span>
+      </span>
+    </button>`);
+  return out.join('');
 }
 
 function filterModels(value) {
@@ -370,6 +405,14 @@ function selectModel(id, opts = {}) {
   // 15s poll came around, so a perfectly good model looked broken for up to a
   // quarter of a minute. Probe now, and say "Checking…" while we wait.
   checkConnectivity({ announce: true });
+
+  // Visitor mode: remember which engine they chose, and restate on screen which
+  // one is answering. The credit line's claim — "hosted model" vs "your own
+  // machine" — is only honest if it tracks the switch.
+  if (window.IS_VISITOR) {
+    window.BarangayDB?.dbSetItem?.('visitor_active_model', { model: m.model, base: m.base });
+    if (window.refreshVisitorEngineLabels) window.refreshVisitorEngineLabels();
+  }
 
   if (!opts.silent) showToast(`Switched to ${m.model}`);
 }
@@ -502,6 +545,11 @@ function toggleModelEnabled(gi, mi) {
 function deleteEndpoint(gi) {
   const g = _epGroup(gi);
   if (!g) return;
+  // The endpoint manager is owner-only chrome and is removed from the DOM in
+  // visitor mode, so this is belt-and-braces — but the failure it prevents is
+  // unrecoverable: _REMOVED_ENDPOINTS persists, and the UI that could add
+  // '/api' back is exactly the UI a visitor doesn't have.
+  if (window.IS_VISITOR && g.base === '/api') { showToast('The hosted model stays'); return; }
   if (!confirm(`Delete endpoint "${g.endpoint}"? Its ${g.models.length} model(s) will be removed from the picker.`)) return;
   g.models.forEach(m => _DISABLED_MODELS.delete(modelKey(m)));
   MODEL_LIST = MODEL_LIST.filter(m => m.base !== g.base);
@@ -762,11 +810,25 @@ async function initModelRegistry() {
       model: name, base: '/api', key: '', kind: 'api',
       source: 'published', endpoint: 'hosted',
     }));
+    // A local model the visitor connected on an earlier visit. Only kind
+    // 'local' is restored, so the cloud half of the endpoint manager can never
+    // reintroduce somebody's saved API key into a visitor session.
+    if (window.BarangayDB && window.BarangayDB.dbLoadModels) {
+      for (const m of window.BarangayDB.dbLoadModels()) {
+        if (m.kind !== 'local' || m.base === '/api') continue;
+        addModelEntry({ model: m.model, base: m.base, key: m.key, kind: 'local', source: 'user' });
+      }
+    }
+    // Whichever engine they last used. Snapping back to cloud on every reload
+    // would quietly undo a switch they made on purpose.
+    const last = window.BarangayDB?.dbGetItem?.('visitor_active_model', null) || null;
+    const restored = last && MODEL_LIST.find(m => m.model === last.model && m.base === last.base);
+
     // selectModel() re-probes on its own now, which is what rescues the visitor
     // view: the module-level check ran against the default local endpoint and
     // failed (127.0.0.1 is the visitor's own machine), so without a re-probe
     // against /api a working site sits on "Offline" until the 15s tick.
-    selectModel(entries[0].id, { silent: true });
+    selectModel((restored || entries[0]).id, { silent: true });
     refreshEndpointStatuses();
     return;
   }
@@ -802,6 +864,86 @@ async function initModelRegistry() {
       if (labelElMobile) labelElMobile.textContent = 'Select model';
     }
   }
+}
+
+// ── VISITOR: CONNECT YOUR OWN MODEL ───────────────────────────────────
+// The published site argues that this same AI runs on your own machine for
+// free. Letting a visitor prove it in one click is a better argument than a
+// caption making the claim — and it spends none of the owner's cloud quota.
+//
+// Loopback only, by design. A free-text endpoint box on somebody else's site is
+// a different feature with a different risk profile; this one asks the single
+// question it can answer honestly, and never asks for a key.
+let _connectingLocal = false;
+
+async function connectLocalModel() {
+  if (_connectingLocal) return;
+  _connectingLocal = true;
+  const nameEl = document.querySelector('#model-dd-connect .model-dd-name');
+  if (nameEl) nameEl.textContent = 'Looking on this computer…';
+
+  try {
+    _REMOVED_ENDPOINTS.delete(API_BASE);
+    const [ids] = await Promise.all([discoverModels(API_BASE, API_KEY), probeOllama(API_BASE)]);
+    // A refused connection and a browser that blocked the request are the same
+    // opaque failure in JS, so the help covers both rather than guessing.
+    if (!ids.length) { openConnectLocalHelp(); return; }
+
+    let first = null;
+    for (const id of ids) {
+      // source 'user' so saveModels() persists it: a connection that vanished
+      // on reload would read as the feature not having worked.
+      const e = addModelEntry({ model: id, base: API_BASE, key: API_KEY, kind: 'local', source: 'user' });
+      if (!first) first = e;
+    }
+    refreshEndpointStatuses();
+    if (first) selectModel(first.id, { silent: true });
+    showToast(`Connected · ${ids.length} model${ids.length === 1 ? '' : 's'} running on this computer`);
+  } finally {
+    _connectingLocal = false;
+    renderModelList(document.getElementById('model-dd-search')?.value || '');
+  }
+}
+
+function openConnectLocalHelp() {
+  const modal = document.getElementById('connect-local-modal');
+  if (!modal) { showToast('Could not reach Ollama on this computer'); return; }
+  // The exact origin, never "*" — see ollamaStartCmdForOrigin in app/config.js.
+  const cmd = document.getElementById('connect-local-cmd');
+  if (cmd) cmd.textContent = ollamaStartCmdForOrigin(location.origin);
+  const originEl = document.getElementById('connect-local-origin');
+  if (originEl) originEl.textContent = location.origin;
+  const dd = document.getElementById('model-dropdown');
+  const sbtn = document.getElementById('model-select-btn');
+  if (dd) dd.classList.remove('open');
+  if (sbtn) sbtn.classList.remove('open');
+  modal.style.display = 'flex';
+}
+
+function closeConnectLocal() {
+  const modal = document.getElementById('connect-local-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function handleConnectLocalBackdrop(e) {
+  if (e.target === document.getElementById('connect-local-modal')) closeConnectLocal();
+}
+
+function copyConnectLocalCmd() {
+  const cmd = document.getElementById('connect-local-cmd');
+  if (!cmd) return;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(cmd.textContent).then(() => showToast('Command copied')).catch(() => showToast('Copy failed'));
+  } else {
+    showToast(cmd.textContent);
+  }
+}
+
+// Retry from inside the help dialog, so "I've started it now" doesn't mean
+// closing this and hunting for the picker again.
+async function retryConnectLocal() {
+  closeConnectLocal();
+  await connectLocalModel();
 }
 
 async function addEndpoint(kind) {
