@@ -21,7 +21,9 @@ Built for DEVCON camps and barangay-level digital literacy: open one HTML file, 
 - **Onboarding flow + Camp Guidebook** — a friendly first-run experience and an in-app guide.
 - **Dark mode**, markdown rendering, streaming responses, context-usage stats, and a collapsible sidebar.
 
-> **On "training":** nothing is fine-tuned. Your files are chunked, and the chunks most relevant to each question are retrieved and pasted into the prompt (classic TF-IDF, no embedding model). That's retrieval-augmented generation — the model is *grounded* on your documents, not trained on them. The Sources panel under each answer shows precisely what got pulled in.
+> **On "training":** nothing is fine-tuned. Your files are chunked, and the chunks most relevant to each question are retrieved and pasted into the prompt (BM25 keyword scoring, no embedding model). That's retrieval-augmented generation — the model is *grounded* on your documents, not trained on them. The Sources panel under each answer shows precisely what got pulled in.
+>
+> Retrieval decides what goes *in* the prompt, not whether the model may answer. Ask something your files don't cover and it retrieves nothing, says so in the trace, and answers from its own knowledge — grounded when your documents are relevant, a normal assistant when they aren't.
 
 ---
 
@@ -199,7 +201,7 @@ barangayAI/
 │   ├── publish.js      # export my-ai.json + visitor-mode lockdown
 │   └── init.js         # welcome screen, chat actions, app bootstrap (window 'load')
 ├── db.js               # SQLite persistence layer (sql.js + IndexedDB)
-├── rag.js              # local knowledge retrieval — chunking + TF-IDF similarity, no embedding model
+├── rag.js              # local knowledge retrieval — chunking + BM25 scoring, no embedding model
 ├── vendor/             # sql.js, pdf.js, mammoth.js, fonts — committed, not CDN (see vendor/README.md)
 ├── assets/
 │   ├── logos/          # vendor + brand logos shown in the model picker and welcome screen

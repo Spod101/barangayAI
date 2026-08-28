@@ -204,12 +204,33 @@ async function sendMessage(anchor) {
   const _runtimeKnowledge = window._AI_KNOWLEDGE_ACTIVE || '';
   const _basePrompt = _runtimeTone ||
     `You are ${_runtimeName} — an open source AI assistant built by the Filipino developer community. You run locally via Ollama and Qwen on school lab hardware. Help with programming, open source, AI/ML, local LLM setup, and Filipino tech topics. Be friendly and practical. You may use Filipino/Taglish warmth but stay clear and technical when needed.`;
-  const _focusRule = `\n\n## Answer Scope Rule (strict)\nAnswer ONLY what the user explicitly asked for. Do not add adjacent, related, or "bonus" information unless the user asked for it.\n- If the user says "list my projects only", return ONLY projects — no education, no skills, no certifications, no closing offers to add more.\n- If the user asks "what is X", define X — do not also explain Y and Z.\n- If the user asks for a list of N items, return exactly that list — no preamble like "Sure, here's a summary…" and no trailing "If you want, I can also…".\n- Treat words like "only", "just", "specifically" as hard filters. Everything outside that filter must be excluded even if it seems helpful.\n- When information is missing from the provided reference material to answer the exact question, say so briefly instead of substituting related information.\n- Prefer short, direct answers over comprehensive ones. Brevity = accuracy here.`;
+  // The name is the one setting every participant changes, and it was the one
+  // setting the model never saw. A custom personality REPLACES the default
+  // prompt wholesale, so the moment someone writes their own — or switches to
+  // a persona — nothing left in the prompt said who the AI was. Asked its
+  // name, the model fell back on its own training and answered "ChatGPT" or
+  // "Google". Stated on its own line, the name survives any personality text,
+  // and overrides a stale one a preset left behind after a rename.
+  const _identityRule = `\n\n## Identity (strict)\nYour name is ${_runtimeName}. If anything above calls you by another name, ${_runtimeName} is the correct one.\nWhen asked who you are, what you are called, or who made you, answer as ${_runtimeName} — never as ChatGPT, Gemini, Claude, Llama, Qwen, Gemma or any other assistant, and never say you were built by OpenAI, Google, Meta, Anthropic or another AI lab.\nYou run on an open model; name that model only if the user asks specifically which model or engine you are running on.`;
+  // Said once at the top, the name has thousands of characters of knowledge and
+  // retrieved chunks piled on top of it before the model reaches the question.
+  // Small models weight the end of a prompt most, so the name is repeated there
+  // as one short line. Forty characters against several thousand — the chunks
+  // keep their spot next to the question, and the name gets the last word too.
+  const _nameReminder = `\n\nRemember: your name is ${_runtimeName}.`;
+  // The "reference material" clause that used to live here moved into the
+  // retrieval block below, because a rule about documents only makes sense on a
+  // turn that has documents. Stated unconditionally, it told the model to plead
+  // missing sources on questions that were never about the user's files —
+  // "who is LeBron James?" answered with "that isn't in your references"
+  // instead of the answer everyone expects. Retrieval picks what goes IN the
+  // prompt; it was never meant to decide whether the model is allowed to speak.
+  const _focusRule = `\n\n## Answer Scope Rule (strict)\nAnswer ONLY what the user explicitly asked for. Do not add adjacent, related, or "bonus" information unless the user asked for it.\n- If the user says "list my projects only", return ONLY projects — no education, no skills, no certifications, no closing offers to add more.\n- If the user asks "what is X", define X — do not also explain Y and Z.\n- If the user asks for a list of N items, return exactly that list — no preamble like "Sure, here's a summary…" and no trailing "If you want, I can also…".\n- Treat words like "only", "just", "specifically" as hard filters. Everything outside that filter must be excluded even if it seems helpful.\n- Prefer short, direct answers over comprehensive ones. Brevity = accuracy here.`;
   const _languageChoice = window._REPLY_LANG_ACTIVE || 'english';
   const _languageRule = buildLanguageRule(_languageChoice);
   let systemPrompt = _runtimeKnowledge
-    ? `${_basePrompt}${_focusRule}${_languageRule}\n\n## Your Knowledge & Abilities\n${_runtimeKnowledge}`
-    : `${_basePrompt}${_focusRule}${_languageRule}`;
+    ? `${_basePrompt}${_identityRule}${_focusRule}${_languageRule}\n\n## Your Knowledge & Abilities\n${_runtimeKnowledge}`
+    : `${_basePrompt}${_identityRule}${_focusRule}${_languageRule}`;
 
   // ── Prompt breakdown ────────────────────────────────────────────────
   // Recorded as the prompt is assembled, so the inspector can explain a 7,000
@@ -226,6 +247,8 @@ async function sendMessage(anchor) {
   };
   _part(`Who ${_runtimeName} is`, _basePrompt,
     _runtimeTone ? 'your custom prompt — Settings › Personalize' : 'the built-in default personality');
+  _part(`Your name: ${_runtimeName}`, _identityRule.length + _nameReminder.length,
+    'Settings › Personalize › Name');
   _part('Answer rules', _focusRule, 'built in — keeps replies short and on-topic');
   _part(`Reply language: ${_languageChoice.charAt(0).toUpperCase() + _languageChoice.slice(1)}`,
     _languageRule, 'Settings › Personalize › Reply language');
@@ -246,28 +269,43 @@ async function sendMessage(anchor) {
   const _trainingFiles = Array.isArray(window._TRAINING_FILES_ACTIVE) ? window._TRAINING_FILES_ACTIVE : [];
   const _trainingNotes = window._TRAINING_NOTES_ACTIVE || '';
   let _retrievedCount = 0, _totalChunkCount = 0;
+  // Why retrieval returned what it did — see rag.js for the full list. Kept so
+  // the trace can say which kind of "nothing matched" this was, because
+  // "your question was all filler words" and "your files don't cover this" are
+  // different lessons and only one of them is worth changing the question over.
+  let _kbReason = 'empty-corpus', _kbIgnoredTerms = [];
   // What retrieval actually pulled, kept for the citation strip under the answer
   // and stored with the message so reopening the chat shows the same provenance.
   let _kbSources = [];
   const _tKb = Date.now();
   if (_trainingFiles.length || _trainingNotes) {
     updateThinkingStep('files', 'active', 'Searching your knowledge base');
-    let trainingBlock = '\n\n## Training Reference Material\nThe user has provided the following reference material. Use it as authoritative background knowledge when relevant.\n';
-    if (_trainingNotes) trainingBlock += `\n### Instructions\n${_trainingNotes}\n`;
+    let trainingBlock = '';
+    if (_trainingNotes) trainingBlock += `\n\n## Your Source Instructions\n${_trainingNotes}\n`;
 
-    // Retrieval: score every chunk against the user's message via TF-IDF +
-    // cosine similarity (plain JS, no embedding model/network call) and keep
-    // only the top-K most relevant, instead of dumping whole files.
+    // Retrieval: score every chunk against the user's message with BM25 (plain
+    // JS, no embedding model/network call) and keep only the ones that clear the
+    // relevance floors, instead of dumping whole files.
     const allChunks = window.BarangayRAG.buildChunkIndex(_trainingFiles);
     _totalChunkCount = allChunks.length;
 
     if (allChunks.length) {
-      const top = window.BarangayRAG.retrieveTopChunks(text, allChunks);
-      _retrievedCount = top.length;
-      _kbSources = top.map((c, i) => ({
+      const result = window.BarangayRAG.retrieve(text, allChunks);
+      _kbReason = result.reason;
+      _kbIgnoredTerms = result.ignored;
+      _retrievedCount = result.chunks.length;
+      _kbSources = result.chunks.map((c, i) => ({
         n: i + 1, file: c.file, index: c.index, total: c.total,
         score: c.score, text: c.text,
       }));
+    }
+
+    // The header only goes in when there is something under it. It used to be
+    // written unconditionally, so a turn that matched nothing still told the
+    // model "the user has provided the following reference material" and then
+    // showed it none — an instruction to consult sources that were not there.
+    if (_kbSources.length) {
+      trainingBlock += '\n\n## Training Reference Material\nThe user has provided the following reference material. Use it as authoritative background knowledge when relevant.\n';
       // Numbered [K1], [K2]… so a claim can point at the chunk it came from.
       // Distinct from the web results' [1] on purpose — both can appear in one
       // answer, and the chip renderers must not fight over the same marker.
@@ -275,11 +313,18 @@ async function sendMessage(anchor) {
         trainingBlock += `\n### [K${c.n}] From: ${c.file} (chunk ${c.index} of ${c.total})\n${c.text}\n`;
       }
       trainingBlock += '\nWhen a statement comes from the reference material above, cite it inline with its marker, e.g. [K1]. Do not cite material you did not use.';
+      // Scoped deliberately: don't pad an answer out of the wrong excerpt, but
+      // this material is a reference, not the limit of what you may answer. A
+      // question that isn't about it is answered normally, uncited.
+      trainingBlock += '\nIf the material above does not answer the exact question, say so briefly rather than substituting a related passage from it. If the question is not about this material at all, answer it normally from your own knowledge and cite nothing.';
     }
-    systemPrompt += trainingBlock;
-    _part(_retrievedCount ? `${_retrievedCount} matching chunk${_retrievedCount !== 1 ? 's' : ''} of your sources` : 'Your source instructions',
-      trainingBlock,
-      _retrievedCount ? `pulled from ${_totalChunkCount} chunks across your uploaded files` : 'Sources panel');
+
+    if (trainingBlock) {
+      systemPrompt += trainingBlock;
+      _part(_retrievedCount ? `${_retrievedCount} matching chunk${_retrievedCount !== 1 ? 's' : ''} of your sources` : 'Your source instructions',
+        trainingBlock,
+        _retrievedCount ? `pulled from ${_totalChunkCount} chunks across your uploaded files` : 'Sources panel');
+    }
   }
 
   if (_trainingFiles.length || _trainingNotes) {
@@ -304,13 +349,41 @@ async function sendMessage(anchor) {
       _kbFileNames.length === 1 ? 'chunk' : 'srcfile',
       _kbFileNames.length === 1 ? `chunk ${c.index} of ${c.total}` : `${c.file} · chunk ${c.index}/${c.total}`,
       { meta: `match ${c.score.toFixed(2)}` }));
+    // "Nothing matched" has more than one cause, and they teach different
+    // lessons. A question made of filler words never had anything to search on;
+    // a question that did, and still scored too low, means the files simply do
+    // not cover it. Both end the same way — the model answers on its own — but
+    // only the first is something the student can fix by asking differently.
     if (_totalChunkCount && !_retrievedCount) {
-      addTraceRow('kb-none', 'more', 'nothing matched — answering without your sources');
+      const _why = _kbReason === 'all-stopwords' ? 'no keywords to search on'
+        : _kbReason === 'not-in-sources' ? 'this question is not about your files'
+        : _kbReason === 'terms-too-common' ? 'these words are in too much of your files to narrow anything'
+        : 'nothing scored high enough';
+      addTraceRow('kb-none', 'more', `${_why} — answering without your sources`);
     }
+    // Naming the words that were thrown out is the whole lesson: "name" losing
+    // to its own ubiquity in a brand kit is retrieval working, not failing.
+    // And the card never treats an empty result as a failure, because it isn't
+    // one — retrieval chooses what goes in the prompt, not whether the model is
+    // allowed to answer. Ask it about LeBron James with a barangay handbook
+    // loaded and the right outcome is zero chunks and a normal answer.
+    const _filesLabel = `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded`;
+    const _ownKnowledge = 'The model is answering from its own knowledge.';
+    const _quoted = `"${_kbIgnoredTerms.join('", "')}"`;
+    const _emptyCard =
+      _kbReason === 'all-stopwords'
+        ? `${_filesLabel}. This question is all filler words — there was nothing to search on. ${_ownKnowledge}`
+      : _kbReason === 'not-in-sources'
+        ? `${_filesLabel}, but none of this question's words appear in them. ${_ownKnowledge}`
+      : _kbReason === 'terms-too-common'
+        ? `${_filesLabel}. ${_quoted} ${_kbIgnoredTerms.length !== 1 ? 'appear' : 'appears'} in too much of your files to narrow anything down. ${_ownKnowledge}`
+        : `${_filesLabel}, but none of the ${_totalChunkCount} chunks scored high enough on this question. ${_ownKnowledge}`;
     if (window._setEduCard) window._setEduCard('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>', _retrievedCount
-      ? `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded — retrieved the ${_retrievedCount} most relevant chunk${_retrievedCount !== 1 ? 's' : ''} (of ${_totalChunkCount}) via keyword matching for this question.`
-      : `${fileCount} knowledge file${fileCount !== 1 ? 's' : ''}${noteLabel} loaded, but none of the ${_totalChunkCount} chunks share keywords with this question — the model is answering from its own knowledge.`);
+      ? `${_filesLabel} — retrieved the ${_retrievedCount} most relevant chunk${_retrievedCount !== 1 ? 's' : ''} (of ${_totalChunkCount}) by BM25 keyword scoring for this question.`
+      : _emptyCard);
   }
+  systemPrompt += _nameReminder;
+
   // The size shown is what will actually be sent, estimated at the usual ~4
   // characters per token — the exact count only comes back with the response.
   const _promptChars = systemPrompt.length + messages.reduce((n, m) => n + (m.content || '').length, 0);

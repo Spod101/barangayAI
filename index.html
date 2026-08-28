@@ -1375,7 +1375,7 @@ git push</code></div></div>
       <!-- Name (per persona) -->
       <div class="settings-field">
         <label class="settings-label" for="settings-ai-name">Your Barangay Name</label>
-        <input class="settings-input" id="settings-ai-name" type="text" placeholder="e.g. Barangay AI, Bayani, Isko…" maxlength="40" oninput="commitPersonaDraft(); updateSettingsPreview()">
+        <input class="settings-input" id="settings-ai-name" type="text" placeholder="e.g. Barangay AI, Bayani, Isko…" maxlength="40" oninput="syncPresetName(); commitPersonaDraft(); updateSettingsPreview()">
         <span class="settings-hint">The AI's name — appears in the header, welcome screen, and chat avatars.</span>
       </div>
 

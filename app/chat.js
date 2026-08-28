@@ -286,14 +286,17 @@ function applyCitationChips(bubble, sources) {
 // 0.41" makes RAG a mechanism a student can reason about and tune, instead of
 // magic that either works or doesn't.
 
-// Bars are scaled against the best match in this answer, not against 1.0.
-// TF-IDF cosine scores are small in absolute terms — a genuinely good match
-// often lands near 0.3 — so an absolute bar would render every source as a
-// nearly empty sliver and teach the opposite of what's true. The raw number is
-// always printed beside it, so nothing is hidden by the scaling.
-function kbScoreBar(score, best) {
-  const pct = best > 0 ? Math.max(6, Math.round((score / best) * 100)) : 0;
-  return `<span class="kb-score" title="TF-IDF cosine similarity to your question">`
+// Bars are absolute now, filling against 1.0. They used to be scaled against
+// the best match in the answer, because raw TF-IDF cosine scores were small in
+// absolute terms and an absolute bar drew every source as an empty sliver. But
+// relative scaling always drew the top result as a full bar, so a weak best
+// match looked identical to a strong one. BM25 normalised by the query's own
+// term weights gives a real 0–1 reading — "how much of your question does this
+// chunk cover" — so the bar can just show it, and a mediocre 0.31 now looks
+// like a mediocre 0.31.
+function kbScoreBar(score) {
+  const pct = Math.max(6, Math.min(100, Math.round(score * 100)));
+  return `<span class="kb-score" title="BM25 relevance: how much of your question's distinctive wording this chunk covers">`
     + `<span class="kb-score-bar"><span style="width:${pct}%"></span></span>`
     + `<span class="kb-score-num">${score.toFixed(2)}</span></span>`;
 }
@@ -301,7 +304,6 @@ function kbScoreBar(score, best) {
 function buildKnowledgeSourcesEl(kbSources) {
   const list = (Array.isArray(kbSources) ? kbSources : []).filter(s => s && s.file);
   if (!list.length) return null;
-  const best = Math.max(...list.map(s => s.score || 0));
 
   const wrap = document.createElement('div');
   wrap.className = 'web-sources kb-sources';
@@ -338,7 +340,7 @@ function buildKnowledgeSourcesEl(kbSources) {
         <span class="kb-source-marker">K${s.n}</span>
         <span class="web-source-title">${single ? `chunk ${s.index} of ${s.total}` : escHtml(s.file)}</span>
         ${single ? '' : `<span class="web-source-host">chunk ${s.index}/${s.total}</span>`}
-        ${kbScoreBar(s.score || 0, best)}
+        ${kbScoreBar(s.score || 0)}
       </div>
       <div class="kb-source-text"></div>`;
     // textContent, not innerHTML — this is raw document text and may contain

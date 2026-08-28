@@ -199,6 +199,34 @@ function setTonePreset(key, el) {
   if (el) el.classList.add('active');
 }
 
+// A preset writes the AI's name into the personality text at the moment it is
+// picked. Renaming the AI afterwards left the old name sitting in that text, so
+// the model was handed two names and could answer with either one.
+//
+// The text is matched back against the preset templates with the name treated as
+// a wildcard, rather than by remembering what the previous name was: an untouched
+// preset is re-rendered under the new name, and a personality the student
+// actually wrote or edited never matches, so it is left alone.
+function syncPresetName() {
+  const nameEl = document.getElementById('settings-ai-name');
+  const toneEl = document.getElementById('settings-ai-tone');
+  if (!nameEl || !toneEl) return;
+  const tone = toneEl.value.trim();
+  if (!tone) return;
+  const aiName = nameEl.value.trim() || AI_NAME;
+  const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const key of Object.keys(TONE_PRESETS)) {
+    const tpl = TONE_PRESETS[key];
+    if (!tpl || !tpl.includes('{name}')) continue;
+    // maxlength on the name field is 40, so the wildcard is bounded to match.
+    const rx = new RegExp('^' + tpl.split('{name}').map(esc).join('[^\\n]{1,40}') + '$');
+    if (!rx.test(tone)) continue;
+    toneEl.value = tpl.replace(/\{name\}/g, aiName);
+    detectActivePreset(toneEl.value);
+    return;
+  }
+}
+
 function detectActivePreset(currentTone) {
   const aiName = document.getElementById('settings-ai-name').value.trim() || AI_NAME;
   document.querySelectorAll('.tone-preset-chip').forEach(c => {
