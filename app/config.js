@@ -4,7 +4,16 @@ const API_KEY     = 'ollama';
 const MODEL       = 'qwen2.5:3b';
 const AI_NAME     = 'DEVCON';
 const AI_AVATAR   = 'DV';
-const BRAND_COLOR = '#4F46E5';
+// Kept in step with --dc-blue in styles.css. app/init.js re-asserts this over
+// the stylesheet on every load, so the two disagreeing means the stylesheet
+// loses — change both or neither.
+const BRAND_COLOR = '#0B7A55';
+// The brand default this replaced. A saved brand_color from before the change
+// is indistinguishable from a deliberate pick, so applySettings() treats
+// exactly this value as "never chose one" and adopts the new default instead —
+// otherwise every existing install would stay violet forever while every fresh
+// one came up green. See normaliseBrandColor() in app/settings.js.
+const LEGACY_BRAND_COLOR = '#4F46E5';
 const AI_TONE     = null;   // set a string here to override the default system prompt
 const SUGGESTIONS = null;   // set an array of { icon, label, desc, prompt } to override suggestion cards
 const CONTEXT_WINDOW = 32768; // model context window (tokens) — used for the "context used" stat

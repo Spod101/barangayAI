@@ -46,13 +46,35 @@ let _modelCache = { at: 0, ids: null };
 // provider account; visitors never see it and never pay for it. The client
 // cannot ask for a huge completion, cannot send an enormous prompt, and
 // cannot name a model the provider does not actually serve.
-const MAX_TOKENS_CAP = 512;
+// 2048, not 512. The old ceiling predated reasoning models and quietly broke
+// against them: max_tokens on an OpenAI-compatible endpoint bounds reasoning
+// tokens AND visible output together, and the default model here
+// (openai/gpt-oss-20b) reasons at 'medium' unless told otherwise. A structured
+// request — "reply with a JSON array of five flashcards" — measured 510 of 512
+// tokens spent thinking and returned an EMPTY string with finish_reason
+// 'length'. Not a truncated answer, no answer, and a 200 status on the way out.
+//
+// A cap that stops the app's own features from returning anything is not
+// protecting the owner's quota, it is spending it on nothing. The real backstop
+// was always the provider's own daily limit; this only has to stop a single
+// request being enormous, and 2048 does that while leaving room for a model to
+// think and then still speak.
+const MAX_TOKENS_CAP = 2048;
 const MAX_BODY_BYTES = 128 * 1024;
+
+// Which environment variables count as "the key". MODEL_API_BASE is provider
+// agnostic, so MODEL_API_KEY is the name the docs teach — but the overwhelmingly
+// common case is a Groq key, and GROQ_API_KEY is the name Groq's own docs use and
+// therefore the name people actually type into Vercel. Accepting both costs one
+// line and removes an entire category of "I added the key and it still says no
+// model is connected", which is indistinguishable from a broken deploy and is
+// almost always just a variable named the other thing.
+const KEY_VARS = ['MODEL_API_KEY', 'GROQ_API_KEY'];
 
 function config() {
   return {
     base: (process.env.MODEL_API_BASE || DEFAULT_BASE).replace(/\/+$/, ''),
-    key: process.env.MODEL_API_KEY || '',
+    key: (KEY_VARS.map(n => process.env[n]).find(v => v && v.trim()) || '').trim(),
     // MODEL_NAME is optional and means "offer exactly these". Unset is a
     // first-class state, not a missing setting: leave it out and visitors get
     // every chat model the key can reach. Comma-separated for a shortlist;
@@ -144,6 +166,25 @@ async function sendModels(res, cfg) {
 // upstream — see buildPayload.
 const PASSTHROUGH_NUMBERS = ['temperature', 'top_p', 'presence_penalty', 'frequency_penalty', 'seed'];
 
+// Raising max_tokens gives a reasoning model room to think; this lets a caller
+// ask it to think less in the first place, which is the better lever for a task
+// whose answer is short and structured. Groq documents these values for the
+// gpt-oss models ('medium' is the default, which is why an untouched request
+// reasons at length), and 'none'/'default' for Qwen.
+//
+// Validated against a fixed set rather than forwarded as given: this reaches a
+// provider verbatim, and an arbitrary string in a field the provider parses is
+// exactly the shape of input that earns a 400 for everybody. An unrecognised
+// value is dropped, which lands on the provider's own default — the behaviour
+// before this existed.
+//
+// Not every OpenAI-compatible server knows this field, and the ones that don't
+// answer 400. Only app/review.js sends it, only on cloud engines, and a failed
+// batch there is already handled (that batch is skipped and reported) — so on an
+// exotic MODEL_API_BASE this degrades to "cards took another attempt", not to a
+// broken deploy.
+const REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'default']);
+
 // role + content only. Extra per-message fields are dropped on purpose:
 // `messages[].name`, for one, is a documented 400 on Groq.
 function sanitizeMessages(input) {
@@ -196,6 +237,9 @@ function buildPayload(body, model) {
       payload.stream_options = { include_usage: body.stream_options.include_usage === true };
     }
   }
+  if (typeof body.reasoning_effort === 'string' && REASONING_EFFORTS.has(body.reasoning_effort)) {
+    payload.reasoning_effort = body.reasoning_effort;
+  }
   if (typeof body.stop === 'string') payload.stop = body.stop;
   else if (Array.isArray(body.stop)) {
     const stops = body.stop.filter(s => typeof s === 'string').slice(0, 4);
@@ -230,10 +274,27 @@ module.exports = async function handler(req, res) {
   // student pushed before adding the key), so it gets a message the app
   // can show a human rather than a raw network failure.
   if (!cfg.key) {
+    // Naming the environment is the whole point of this branch. Vercel scopes
+    // variables to Production / Preview / Development separately, so the single
+    // most common cause of landing here is a key that IS set — just not for the
+    // environment being viewed. "No key" and "key set on the other environment"
+    // produce an identical failure, and without this they are indistinguishable
+    // from the browser; the owner re-checks the dashboard, sees the variable
+    // sitting right there, and concludes the deploy is broken.
+    //
+    // Variable NAMES only, never values. These two names are documented in the
+    // README, so echoing them tells an attacker nothing it could not already
+    // read — and it tells the owner exactly which spelling was found.
+    const env = process.env.VERCEL_ENV || 'unknown';
     res.status(503).json({
       error: {
-        message: 'This AI has no model connected yet. The owner needs to add a MODEL_API_KEY environment variable on Vercel and redeploy.',
+        message:
+          `This AI has no model connected yet. No API key is visible to the "${env}" environment on Vercel. ` +
+          `Add ${KEY_VARS[0]} (or ${KEY_VARS[1]}) under Settings → Environment Variables, ` +
+          `make sure the "${env}" checkbox is ticked, then redeploy — variables only apply to builds created after they are saved.`,
         code: 'model_not_configured',
+        environment: env,
+        accepted_variable_names: KEY_VARS,
       },
     });
     return;

@@ -1,5 +1,18 @@
   :root {
-    --dc-blue: #4F46E5;
+    /* The one brand hue. Every brand-coloured surface in this file derives from
+       it, so a single value here relights the whole app — that is why the token
+       is worth the indirection.
+
+       The NAME is now a historical artefact: it held a DEVCON blue, then a
+       violet, and now a jade green. It is referenced in ~200 places and renaming
+       it would be a large diff that changes nothing about what renders, so it
+       stays. Read "--dc-blue" as "the brand colour", not as "blue".
+
+       #0B7A55 is deep on purpose. --user-bubble is this colour with white text
+       on top, and the bright mint greens that look best on a swatch land near
+       3.4:1 there, under the 4.5:1 floor for body text. This sits at ~5.1:1
+       against white and still lifts cleanly off the dark theme's ground. */
+    --dc-blue: #0B7A55;
     /* Shades/tints below are all derived from --dc-blue via color-mix (read
        live at paint time), tuned to match the original fixed hex values
        exactly when --dc-blue is the default. A brand-color swatch pick
@@ -18,15 +31,17 @@
        the swatch only relit --dc-blue and this stayed cyan forever. Deriving it
        means one swatch pick carries every highlight, chip, icon and slider with
        it. Light mode deepens the brand so it holds contrast on white panels;
-       dark mode lifts it off the violet ground (~5.2:1 on --bg-panel). */
+       dark mode lifts it off the dark ground (~5.2:1 on --bg-panel). */
     --dc-accent: color-mix(in srgb, var(--dc-blue) 92%, black);
     --dc-accent-light: color-mix(in srgb, var(--dc-blue) 10%, white);
-    /* Rounding out the brand palette to match the DEVCON 17 mark's four-dot
-       lockup (gold/orange/violet/green) so gradients can echo the logo
-       instead of staying blue-only. Gold/orange/green are fixed — they are the
-       logo's own dots and never read blue. Violet was the one dot that did
-       (#7C5CFF is blue-dominant), so it now tracks the brand as a lighter
-       companion; at the default brand it lands within a hair of the old hex. */
+    /* The companion hues gradients and ambient glows draw on. --dc-violet is
+       another name kept for its call sites rather than its colour: it is
+       "the brand, one step lighter", so under a jade brand it renders as a soft
+       sage. Gold and orange stay fixed — they are the warm counterweight that
+       keeps an all-green UI from reading flat, and they never track the brand.
+       --dc-green is deliberately NOT the brand green: it marks success states
+       ("Copied"), and a confirmation tick in the exact brand hue stops reading
+       as feedback. Keeping it a brighter leaf green keeps that signal legible. */
     --dc-violet: color-mix(in srgb, var(--dc-blue) 72%, white);
     --dc-gold: #FFC93C;
     --dc-orange: #FF8A3D;
@@ -35,30 +50,33 @@
        bubbles laid on top of it read as raised surfaces instead of melting
        into the page — the old #F7F9FC was bright enough to glare and left
        cards with almost no edge. */
-    /* The neutral scale used to be a blue-gray family (#EBEFF9/#D0DDF0/
-       #8AA0B8/#4A6280/#0D1B2E). Against a purple brand every border, caption
-       and page edge read faintly blue — the "cold cast" half of the problem.
-       These are the violet-neutral counterparts, the same family the dark
-       theme already uses, and each one is equal or better on contrast. */
-    --bg-primary: #EDEBF7;
+    /* A neutral scale is never actually neutral — it carries a cast, and that
+       cast has to agree with the brand or every border and caption fights it.
+       This family went blue-gray, then violet-neutral under the violet brand;
+       these are the green-neutral counterparts. The green is faint on purpose
+       (a couple of points of saturation, not a tint you would name), which is
+       what keeps large surfaces reading as paper and slate rather than as mint.
+       Contrast is equal or better than the violet set it replaces: secondary
+       text lands at ~6.4:1 on --bg-panel, primary text at ~16:1. */
+    --bg-primary: #E9F0EC;
     --bg-panel: #FFFFFF;
     /* Was referenced in 5+ places (guidebook tab pills, settings fields) but
        never actually defined in either theme, so those surfaces silently
        resolved to transparent. */
-    --bg-secondary: #F3F1FA;
+    --bg-secondary: #F1F6F3;
     /* The sidebar/rail is a dark brand slab in both themes; a vertical
-       blue→violet gradient (rather than a flat fill) ties it to the poster
-       art and to the body glow behind it. */
+       gradient (rather than a flat fill) ties it to the ambient glow behind it.
+       Built from the brand rather than fixed, so a swatch pick carries it. */
     --bg-sidebar:
       linear-gradient(168deg,
-        color-mix(in srgb, var(--dc-blue) 60%, black) 0%,
-        color-mix(in srgb, var(--dc-blue) 42%, black) 52%,
-        color-mix(in srgb, var(--dc-violet) 34%, black) 100%);
-    --text-primary: #171232;
-    --text-secondary: #5B5480;
-    --text-muted: #948EB4;
-    --border: #D7D2E8;
-    --border-light: #EAE7F4;
+        color-mix(in srgb, var(--dc-blue) 62%, black) 0%,
+        color-mix(in srgb, var(--dc-blue) 44%, black) 52%,
+        color-mix(in srgb, var(--dc-violet) 30%, black) 100%);
+    --text-primary: #10231B;
+    --text-secondary: #4E6459;
+    --text-muted: #8AA096;
+    --border: #D2E0D8;
+    --border-light: #E8F0EB;
     --user-bubble: var(--dc-blue);
     --ai-bubble: #FFFFFF;
     /* Failure states used to be red end to end — surface, border, headings,
@@ -101,29 +119,32 @@
     --scene-gold: var(--dc-orange);
   }
 
-  /* DEVCON 17 dark theme — deep indigo/violet void (poster background) with
-     the brand blue kept for interactive elements; gold is a sparing accent
-     for special highlights, echoing the poster's "17" star. */
+  /* Dark theme — a deep pine/forest void rather than the old indigo one, so it
+     shares the brand's hue family instead of sitting at odds with it. The brand
+     green carries interactive elements; gold stays a sparing accent for
+     highlights, and is the one warm note that keeps the theme from going
+     monochrome. Panels are lifted only ~6% off the page ground: any more and
+     every card grows a visible box, any less and the layering disappears. */
   [data-theme="dark"] {
-    --bg-primary: #17132E;
-    --bg-panel: #221C46;
-    --bg-sidebar: linear-gradient(168deg, #1A1438 0%, #120E26 55%, #0D0A1F 100%);
+    --bg-primary: #0D1A15;
+    --bg-panel: #152620;
+    --bg-sidebar: linear-gradient(168deg, #11241C 0%, #0C1913 55%, #081210 100%);
     --scene-dust: #FFFFFF;
     --scene-gold: var(--dc-gold);
-    --text-primary: #ECE9FA;
-    --text-secondary: #9A93C2;
-    --text-muted: #5C5484;
-    --border: #362E63;
-    --border-light: #261F4A;
+    --text-primary: #E6F0EA;
+    --text-secondary: #93AAA0;
+    --text-muted: #5B7268;
+    --border: #2A4238;
+    --border-light: #1D3129;
     --user-bubble: var(--dc-blue);
-    --ai-bubble: #221C46;
+    --ai-bubble: #152620;
     --dc-blue-light: color-mix(in srgb, var(--dc-blue) 25%, var(--bg-panel));
     --dc-accent: color-mix(in srgb, var(--dc-blue) 62%, white);
     --dc-accent-light: color-mix(in srgb, var(--dc-blue) 10%, var(--bg-panel));
-    --bg-secondary: #1B1539;
-    /* Lifted well off the deep violet ground — the light-mode red goes muddy
+    --bg-secondary: #112019;
+    /* Lifted well off the deep ground — the light-mode red goes muddy
        against it, and the tints need more weight to stay visible. */
-    /* Lifted off the deep violet ground, but not washed out: the previous
+    /* Lifted off the deep ground, but not washed out: the previous
        #F08A85 sat at the same hue and simply lost saturation, which lands on
        salmon and reads orange at glyph size. Saturation is what makes it read
        as red here, not hue. */
@@ -3346,7 +3367,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(14, 9, 32, 0.72);
+    background: rgba(6, 20, 15, 0.74);
     z-index: 200;
     display: flex;
     align-items: center;
@@ -3790,8 +3811,8 @@
   /* PULL TERMINAL — mimics a terminal window; stays dark in both themes */
   .pull-terminal-card {
     max-width: 520px;
-    background: #141024;
-    border: 1px solid #332B57;
+    background: #0A1611;
+    border: 1px solid #263E33;
     border-radius: 12px;
     overflow: hidden;
     padding: 0;
@@ -3799,8 +3820,8 @@
   .pull-terminal-titlebar {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
-    background: #1C1636;
-    border-bottom: 1px solid #332B57;
+    background: #0F1F18;
+    border-bottom: 1px solid #263E33;
   }
   .pull-terminal-dots { display: flex; gap: 6px; flex-shrink: 0; }
   .pull-terminal-dots span { width: 10px; height: 10px; border-radius: 50%; display: block; }
@@ -3808,23 +3829,23 @@
   .pull-terminal-dots span:nth-child(2) { background: #ffbd2e; }
   .pull-terminal-dots span:nth-child(3) { background: #27c93f; }
   .pull-terminal-title {
-    flex: 1; font-family: var(--font-mono); font-size: 12px; color: #948DBA; text-align: center;
+    flex: 1; font-family: var(--font-mono); font-size: 12px; color: #8AA79A; text-align: center;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .pull-terminal-close {
-    background: none; border: none; color: #948DBA; cursor: pointer; padding: 3px;
+    background: none; border: none; color: #8AA79A; cursor: pointer; padding: 3px;
     display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;
   }
-  .pull-terminal-close:hover { background: #332B57; color: #ECE9FA; }
+  .pull-terminal-close:hover { background: #263E33; color: #E6F0EA; }
   .pull-terminal-log {
     margin: 0; padding: 14px 16px;
     height: 260px; overflow-y: auto;
     font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
-    color: #D5D0E8; background: #141024;
+    color: #CFE0D6; background: #0A1611;
     white-space: pre-wrap; word-break: break-all;
   }
   .pull-terminal-log::-webkit-scrollbar { width: 4px; }
-  .pull-terminal-log::-webkit-scrollbar-thumb { background: #332B57; border-radius: 2px; }
+  .pull-terminal-log::-webkit-scrollbar-thumb { background: #263E33; border-radius: 2px; }
   .pull-term-line.ok  { color: #7ee787; font-weight: 700; }
   .pull-term-line.err { color: #ff7b72; font-weight: 700; }
   .rec-cpu-note { font-size: 11.5px; color: var(--text-muted); margin: 2px 0 8px; }
@@ -4217,7 +4238,7 @@
   .settings-modal {
     position: fixed;
     inset: 0;
-    background: rgba(14, 9, 32, 0.72);
+    background: rgba(6, 20, 15, 0.74);
     z-index: 500;
     display: none;
     align-items: center;
@@ -4913,28 +4934,42 @@
   }
   .seg-tabs button {
     flex: 1;
+    min-width: 0;
     border: none;
     border-radius: 9px;
     background: transparent;
     font-family: var(--font-main);
-    font-size: 11.5px;
+    /* 11px, not 11.5px: a third tab plus the counters the two right-hand tabs
+       carry ("Sources · 3", "Review · 12") no longer fit at the old size, and a
+       label clipped mid-word is worse than half a point smaller. */
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-secondary);
-    padding: 7px 0;
+    padding: 7px 2px;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .seg-tabs button.on {
     background: var(--bg-panel);
     color: var(--text-primary);
-    box-shadow: 0 1px 4px rgba(30,22,58,0.10);
+    box-shadow: 0 1px 4px rgba(16,35,27,0.10);
   }
   [data-theme="dark"] .seg-tabs button.on { background: var(--bg-primary); }
-  #sidebar[data-tab="sources"] .sidebar-section,
-  #sidebar[data-tab="sources"] .history-list { display: none; }
-  #sidebar[data-tab="chats"] #kb-panel { display: none; }
+  /* Three tabs now (Chats / Sources / Review), so the old "hide X while the tab
+     is Y" shape no longer holds — with two tabs "not chats" and "is sources"
+     were the same statement, and with three they are not. Each panel is instead
+     hidden unless its own tab is the selected one, which stays correct however
+     many tabs get added later. */
+  #sidebar:not([data-tab="chats"]) .sidebar-section,
+  #sidebar:not([data-tab="chats"]) .history-list,
+  #sidebar:not([data-tab="sources"]) #kb-panel,
+  #sidebar:not([data-tab="review"]) #review-panel { display: none; }
   .sidebar.collapsed .seg-tabs,
-  .sidebar.collapsed #kb-panel { display: none; }
+  .sidebar.collapsed #kb-panel,
+  .sidebar.collapsed #review-panel { display: none; }
 
   /* ── SOURCES PANEL ────────────────────────────────────────────────── */
   #kb-panel {
@@ -5307,3 +5342,601 @@ body.visitor-mode .kb-item { cursor: default; }
 }
 .publish-link:hover { text-decoration-thickness: 2px; }
 .publish-warn { color: var(--danger); font-weight: 600; }
+
+/* ══ REVIEW STUDY BUDDY ═════════════════════════════════════════════════
+   Flashcards, Bloom levels, quiz and progress. Everything here reuses the
+   settings-modal chrome (.settings-card / .modal-tabs / .settings-body) so the
+   Review workspace is the same object the rest of the app already is; only the
+   card surfaces and the Bloom colour scale are new.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Bloom colour scale ────────────────────────────────────────────────
+   Six hues running cool to warm, so the ramp itself carries the low-order →
+   higher-order reading before any label is read. They are NOT derived from the
+   brand: the whole job of this scale is to tell six things apart, and six mixes
+   of one hue cannot do that.
+
+   Light mode fills the chip and puts white on top, so every value is deep
+   enough to clear 4.5:1 there (each sits at ~5:1). Dark mode cannot reuse them
+   as fills — lifting a hue far enough to read against a near-black panel drops
+   white text to ~2.9:1 — so it flips to the pattern used elsewhere in this
+   file: a translucent tint behind the colour as text. */
+.bloom-badge,
+.rv-pip,
+.rv-lvl-bar span,
+.rv-lvl-name i { --bloom-c: var(--dc-blue); }
+
+[data-bloom="remember"]   { --bloom-c: #0F766E; }
+[data-bloom="understand"] { --bloom-c: #0B7A55; }
+[data-bloom="apply"]      { --bloom-c: #43781F; }
+[data-bloom="analyze"]    { --bloom-c: #8A6A10; }
+[data-bloom="evaluate"]   { --bloom-c: #A65510; }
+[data-bloom="create"]     { --bloom-c: #A63D62; }
+
+[data-theme="dark"] [data-bloom="remember"]   { --bloom-c: #17A79B; }
+[data-theme="dark"] [data-bloom="understand"] { --bloom-c: #14A873; }
+[data-theme="dark"] [data-bloom="apply"]      { --bloom-c: #62A82D; }
+[data-theme="dark"] [data-bloom="analyze"]    { --bloom-c: #C29418; }
+[data-theme="dark"] [data-bloom="evaluate"]   { --bloom-c: #D2761B; }
+[data-theme="dark"] [data-bloom="create"]     { --bloom-c: #CF5480; }
+
+.bloom-badge {
+  align-self: flex-start;
+  display: inline-block;
+  background: var(--bloom-c);
+  color: #FFFFFF;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+[data-theme="dark"] .bloom-badge {
+  background: color-mix(in srgb, var(--bloom-c) 20%, transparent);
+  color: var(--bloom-c);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bloom-c) 32%, transparent);
+}
+
+/* ── Sidebar: Review panel ─────────────────────────────────────────────
+   Structurally the Sources panel, which is why it borrows .kb-head/.kb-title/
+   .kb-total/.kb-list from it. Only the outer box and the deck rows are new —
+   #kb-panel's own layout is bound to that id, not to a class. */
+#review-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 8px 8px;
+  border-radius: 12px;
+}
+.rv-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.rv-item:hover { background: var(--sb-hover-bg); }
+.rv-item.active { background: color-mix(in srgb, var(--sb-accent) 20%, transparent); }
+.rv-meta { flex: 1; min-width: 0; }
+.rv-meta b {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--sb-text-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rv-meta i {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--sb-text-dim);
+}
+/* The due count is the one number that should pull the eye across a quick glance
+   at the sidebar, so it is the only filled element in the list. It sits on the
+   dark sidebar slab in BOTH themes, which is why it uses --sb-accent (the lifted
+   brand) behind dark ink rather than the brand behind white: the deep brand
+   green barely separates from the slab, and light-on-light would not read. */
+.rv-due {
+  flex-shrink: 0;
+  min-width: 19px;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #0A1611;
+  background: var(--sb-accent);
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+.rv-open-btn {
+  flex-shrink: 0;
+  margin: 8px 2px 2px;
+  padding: 8px 0;
+  border: 1px dashed var(--sb-border);
+  border-radius: 9px;
+  background: transparent;
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sb-text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rv-open-btn:hover {
+  background: var(--sb-hover-bg);
+  border-color: var(--sb-accent);
+  color: var(--sb-text-strong);
+}
+
+/* ── Modal shell ───────────────────────────────────────────────────────
+   Wider than the settings card: a flashcard has to hold a sentence-long
+   question without becoming a column of four-word lines. */
+.settings-card.rv-card { max-width: 560px; }
+.rv-card.generating { pointer-events: none; opacity: 0.7; }
+/* The Generate button has to stay clickable-looking while disabled inside a
+   dimmed card, and the close button has to stay usable. */
+.rv-card.generating .modal-close { pointer-events: auto; }
+
+.rv-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rv-toolbar .settings-input {
+  flex: 1;
+  min-width: 120px;
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
+.rv-engine { font-weight: 600; }
+.rv-engine.warn { color: var(--danger); }
+
+.rv-status {
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+.rv-status.ok {
+  border-color: color-mix(in srgb, var(--dc-blue) 30%, transparent);
+  background: var(--dc-blue-light);
+  color: var(--dc-accent);
+}
+.rv-status.warn {
+  border-color: color-mix(in srgb, var(--dc-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--dc-gold) 12%, transparent);
+  color: var(--text-primary);
+}
+.rv-status.error {
+  border-color: var(--danger-edge);
+  background: var(--danger-tint);
+  color: var(--text-primary);
+}
+.rv-status.busy { font-variant-numeric: tabular-nums; }
+
+/* ── Bloom level chips ─────────────────────────────────────────────────── */
+.bloom-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+}
+.bloom-chip {
+  border: 1.5px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bloom-chip:hover { border-color: var(--dc-blue-tint); color: var(--text-secondary); }
+.bloom-chip.on {
+  border-color: var(--dc-blue);
+  background: var(--dc-blue-light);
+  color: var(--dc-accent);
+}
+[data-theme="dark"] .bloom-chip { background: var(--bg-secondary); }
+[data-theme="dark"] .bloom-chip.on {
+  background: color-mix(in srgb, var(--dc-blue) 20%, transparent);
+  color: var(--dc-accent);
+}
+
+/* ── Deck manager ──────────────────────────────────────────────────────── */
+#review-deck-manager { display: flex; flex-direction: column; gap: 7px; margin-top: 3px; }
+.rv-deck-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.rv-deck-row.active {
+  border-color: color-mix(in srgb, var(--dc-blue) 40%, transparent);
+  background: var(--dc-blue-light);
+}
+[data-theme="dark"] .rv-deck-row.active { background: color-mix(in srgb, var(--dc-blue) 14%, transparent); }
+.rv-deck-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rv-deck-main b {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rv-deck-main span { font-size: 10.5px; color: var(--text-muted); }
+
+/* Six pips, one per level, counting the cards at it. A deck's balance is the
+   thing worth seeing at a glance here — "24 cards" says nothing about whether
+   they are all recall. */
+.rv-spread { display: flex; gap: 3px; margin-top: 4px; }
+.rv-pip {
+  min-width: 17px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 3px 4px;
+  border-radius: 5px;
+  background: var(--bloom-c);
+  color: #FFFFFF;
+}
+[data-theme="dark"] .rv-pip {
+  background: color-mix(in srgb, var(--bloom-c) 22%, transparent);
+  color: var(--bloom-c);
+}
+.rv-pip.empty {
+  background: var(--border-light);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .rv-pip.empty { background: var(--border-light); color: var(--text-muted); }
+
+.rv-deck-acts { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.rv-mini {
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-family: var(--font-main);
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.rv-mini:hover { border-color: var(--dc-blue); color: var(--dc-accent); }
+.rv-mini.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-tint); }
+
+/* ── Progress bar shared by Study and Quiz ─────────────────────────────── */
+.rv-progress-row { display: flex; align-items: center; gap: 10px; }
+.rv-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+.rv-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dc-blue);
+  transition: width 0.25s ease;
+}
+.rv-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── The flashcard ─────────────────────────────────────────────────────
+   A real 3D flip, not a fade. The turn is what makes "I have committed to an
+   answer" a physical act rather than a checkbox — and committing before you
+   look is the entire mechanism active recall runs on.
+
+   The stage is a fixed height so revealing a long answer cannot make the
+   grade buttons jump out from under a moving cursor. */
+.fc-stage {
+  perspective: 1400px;
+  height: 232px;
+}
+.fc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+.fc.flipped { transform: rotateY(180deg); }
+.fc:focus-visible { outline: 2px solid var(--dc-blue); outline-offset: 3px; border-radius: var(--radius-md); }
+.fc-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-card);
+  overflow-y: auto;
+}
+.fc-face::-webkit-scrollbar { width: 3px; }
+.fc-face::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* The answer side is tinted so a glance can tell which face is showing even
+   mid-turn, when the text is edge-on and unreadable. */
+.fc-back {
+  transform: rotateY(180deg);
+  background: var(--dc-blue-light);
+  border-color: color-mix(in srgb, var(--dc-blue) 28%, transparent);
+}
+[data-theme="dark"] .fc-back { background: color-mix(in srgb, var(--dc-blue) 13%, var(--bg-panel)); }
+.fc-text {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+.fc-back .fc-text { font-weight: 500; font-size: 14px; }
+.fc-hint {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.fc-cite {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.fc-flip-note {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dc-blue-tint);
+  flex-shrink: 0;
+}
+
+/* Study pane wrapper. It exists so the reveal is a class toggle on live nodes
+   instead of a repaint — see reviewFlip() in app/review.js. Both control rows
+   are in the DOM at once and this decides which one is showing. */
+.rv-study { display: flex; flex-direction: column; gap: 14px; }
+.rv-study .rv-back-only { display: none; }
+.rv-study.revealed .rv-front-only { display: none; }
+.rv-study.revealed .rv-grade.rv-back-only { display: flex; }
+.rv-study.revealed .rv-shortcut.rv-back-only { display: block; }
+
+/* ── Grading ───────────────────────────────────────────────────────────── */
+.rv-grade { display: flex; gap: 8px; align-items: stretch; }
+.rv-grade-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 9px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rv-grade-btn small {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.rv-grade-btn.wide { flex: 3; }
+.rv-grade-btn:hover { transform: translateY(-1px); }
+.rv-grade-btn.again:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-tint); }
+.rv-grade-btn.good:hover  { border-color: var(--dc-blue); color: var(--dc-accent); background: var(--dc-blue-light); }
+.rv-grade-btn.easy:hover  { border-color: var(--dc-green); color: var(--dc-green); background: color-mix(in srgb, var(--dc-green) 12%, transparent); }
+.rv-grade-btn.wide:hover  { border-color: var(--dc-blue); color: var(--dc-accent); background: var(--dc-blue-light); }
+.rv-grade .rv-mini { align-self: stretch; padding: 4px 14px; }
+
+.rv-shortcut {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Empty / done states ───────────────────────────────────────────────── */
+.rv-empty {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding: 16px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.rv-empty b { color: var(--text-primary); }
+.rv-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  text-align: center;
+}
+.rv-done-title { font-size: 22px; font-weight: 800; color: var(--dc-accent); }
+.rv-done-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5; }
+.rv-done .settings-btn-primary { width: auto; padding-left: 22px; padding-right: 22px; }
+
+/* ── Quiz ──────────────────────────────────────────────────────────────── */
+.rv-qcard {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-card);
+}
+.rv-qtext { font-size: 14.5px; font-weight: 600; line-height: 1.5; color: var(--text-primary); }
+.rv-opts { display: flex; flex-direction: column; gap: 7px; }
+.rv-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  border: 1.5px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 12.5px;
+  line-height: 1.5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rv-opt:not(:disabled):hover { border-color: var(--dc-blue); background: var(--dc-blue-light); }
+.rv-opt-key {
+  flex-shrink: 0;
+  width: 19px; height: 19px;
+  border-radius: 6px;
+  background: var(--border-light);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+/* Right and wrong are marked with weight and colour together, never colour
+   alone — the answer has to survive being read by someone who cannot separate
+   red from green. */
+.rv-opt.right {
+  border-color: var(--dc-green);
+  background: color-mix(in srgb, var(--dc-green) 13%, transparent);
+  font-weight: 700;
+}
+.rv-opt.right .rv-opt-key { background: var(--dc-green); color: #FFFFFF; }
+.rv-opt.right::after {
+  content: 'correct';
+  margin-left: auto;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dc-green);
+  white-space: nowrap;
+}
+.rv-opt.wrong {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+.rv-opt.wrong .rv-opt-key { background: var(--danger); color: #FFFFFF; }
+.rv-opt.wrong::after {
+  content: 'your pick';
+  margin-left: auto;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--danger);
+  white-space: nowrap;
+}
+.rv-opt.dim { opacity: 0.5; }
+.rv-opt:disabled { cursor: default; }
+
+/* ── Progress ──────────────────────────────────────────────────────────── */
+.rv-stat-row { display: flex; gap: 8px; }
+.rv-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 11px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+}
+.rv-stat b { font-size: 17px; font-weight: 800; color: var(--dc-accent); font-variant-numeric: tabular-nums; }
+.rv-stat span { font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+
+.rv-advice {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding: 11px 13px;
+  border-radius: 10px;
+  border-left: 3px solid var(--dc-blue);
+  background: var(--dc-blue-light);
+}
+[data-theme="dark"] .rv-advice { background: color-mix(in srgb, var(--dc-blue) 12%, transparent); }
+.rv-advice b { color: var(--text-primary); }
+
+.rv-levels { display: flex; flex-direction: column; gap: 9px; }
+.rv-lvl { display: grid; grid-template-columns: 116px 1fr; gap: 4px 10px; align-items: center; }
+.rv-lvl.empty { opacity: 0.55; }
+.rv-lvl-name {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; color: var(--text-primary);
+}
+.rv-lvl-name i {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bloom-c);
+  flex-shrink: 0;
+}
+.rv-lvl-bar { height: 6px; border-radius: 999px; background: var(--border-light); overflow: hidden; }
+.rv-lvl-bar span { display: block; height: 100%; border-radius: 999px; background: var(--bloom-c); transition: width 0.3s ease; }
+.rv-lvl-note { grid-column: 2; font-size: 10px; color: var(--text-muted); }
+.rv-lvl.empty .rv-lvl-note { grid-column: 2; }
+
+/* ── Narrow screens ────────────────────────────────────────────────────
+   The flip card gets taller rather than shorter: the same question wraps to
+   more lines in a narrower box, and a fixed height that fits on a laptop
+   clips it on a phone. */
+@media (max-width: 640px) {
+  .fc-stage { height: 280px; }
+  .fc-text { font-size: 14px; }
+  .rv-lvl { grid-template-columns: 1fr; }
+  .rv-lvl-note { grid-column: 1; }
+  .rv-deck-row { flex-direction: column; }
+  .rv-deck-acts { flex-direction: row; flex-wrap: wrap; }
+  .rv-stat b { font-size: 15px; }
+  .rv-grade-btn { font-size: 11.5px; padding: 9px 4px; }
+}
+
+/* Someone who has asked for less motion should still get the reveal — they
+   just should not get the tumble. */
+@media (prefers-reduced-motion: reduce) {
+  .fc { transition: none; }
+  .rv-bar span, .rv-lvl-bar span { transition: none; }
+  .rv-grade-btn:hover { transform: none; }
+}

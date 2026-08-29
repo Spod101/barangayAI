@@ -14,7 +14,8 @@ Built for DEVCON camps and barangay-level digital literacy: open one HTML file, 
 - **Conversation history** — multiple sessions, saved durably in your browser via SQLite (sql.js + IndexedDB). Your chats never leave your device.
 - **Filipino language support** — reply in **English, Filipino (Tagalog), Taglish, Bisaya, Hiligaynon, or Ilocano**, with grammar rules tuned to keep responses natural and free of Indonesian/Malay contamination.
 - **Customizable persona** — name your AI, pick a tone (friendly, formal, teacher, strict), or write your own system prompt. There's even an AI-assisted prompt expander.
-- **Ground it on your docs** — upload `.txt`, `.md`, `.json`, `.csv`, `.log`, `.pdf`, or `.docx` files as knowledge the AI can draw on. Ships pre-loaded with the DEVCON 17 brand kit so answers are grounded from the first run (removable like any other source).
+- **Ground it on your docs** — upload `.txt`, `.md`, `.json`, `.csv`, `.log`, `.pdf`, or `.docx` files as knowledge the AI can draw on. Ships pre-loaded with a study guide so answers are grounded from the first run (removable like any other source).
+- **Review Study Buddy** — the same AI, pointed the other way: it turns your Sources into flashcards, tags every card with its **Bloom's Taxonomy** level, then drills you with active recall and Leitner spacing. Per-level scoring turns the deck into a diagnosis — weak *Apply* and weak *Remember* need opposite fixes. See [Review Study Buddy](#review-study-buddy).
 - **Shows its receipts** — every answer can show exactly which chunk of which of your files it used, the similarity score that earned each one its place in the prompt, and the **literal prompt that was sent to the model**. Retrieval is a mechanism you can inspect and tune, not a black box.
 - **Works with the internet unplugged** — libraries and fonts are vendored, and a service worker precaches the whole app on first visit. After that the only thing that has to be reachable is your model, which is on your own machine.
 - **Web search** — optional live web results via [Tavily](https://tavily.com) (bring your own API key).
@@ -124,8 +125,7 @@ const API_KEY      = 'ollama';                       // any value works for Olla
 const MODEL        = 'qwen2.5:3b';                   // default model id
 const AI_NAME      = 'DEVCON';                        // display name
 const AI_AVATAR    = 'DV';                            // avatar initials
-const BRAND_COLOR  = '#4F46E5';
-const ACCENT_COLOR = '#00A8E8';
+const BRAND_COLOR  = '#0B7A55';                       // must match --dc-blue in styles.css
 const AI_TONE      = null;   // set a string to override the default system prompt
 const SUGGESTIONS  = null;   // set an array of suggestion cards to override defaults
 const CONTEXT_WINDOW = 32768; // model context window, used for the "context used" stat
@@ -143,10 +143,14 @@ Everything you customize is saved **in your browser**, not in the code — that'
 
 ```
 MODEL_API_KEY    required — your own free key from console.groq.com (no card)
+                 GROQ_API_KEY is accepted as an alias, since that is the name
+                 Groq's own docs use. MODEL_API_KEY wins if both are set.
 MODEL_API_BASE   optional — defaults to https://api.groq.com/openai/v1
 MODEL_NAME       optional — which model(s) to offer, comma-separated.
                  Unset = all of them, and visitors pick.
 ```
+
+> **Tick every environment.** Vercel scopes each variable to **Production**, **Preview** and **Development** separately, and a key set for Production only leaves preview builds with no key at all — the site loads but answers "This AI has no model connected yet". Variables also only apply to builds created *after* they are saved, so **redeploy** once you add one. If you do hit that message, it now names the environment it was missing from, which is usually the whole answer.
 
 The key is **yours** — you create it on your own provider account, and every message a visitor sends draws on your allowance, not anyone else's. It stays in Vercel and is only ever read server-side by [`api/proxy.js`](api/proxy.js). **Never commit one** — public repos get scraped for keys within hours. `my-ai.json` is written without any key by design.
 
@@ -176,6 +180,41 @@ Web search is off until you add a key. Get one from [Tavily](https://tavily.com)
 
 ---
 
+## Review Study Buddy
+
+The **Review** tab in the sidebar (third segment, or the cards icon on the rail) is a second way to use the same AI. Instead of you asking it questions, it asks you.
+
+**Build** — give it a topic, leave *Build from my Sources* on, and it writes a deck from the documents you already uploaded. The same TF-IDF retrieval the chat uses picks which parts of them get read, so a topic of "chapter 3" pulls chapter 3. With the toggle off it builds from the model's own knowledge of the topic instead, which is what you want for a subject you have no file for.
+
+**Bloom's levels** — every card is tagged with the level of thinking it demands, from *Remember* up to *Create*:
+
+| | Level | What it asks for |
+|---|---|---|
+| 1 | Remember | Retrieve a fact or term from memory |
+| 2 | Understand | Restate an idea in your own words |
+| 3 | Apply | Use it in a new but similar situation |
+| 4 | Analyze | Break it apart and relate the parts |
+| 5 | Evaluate | Judge it against criteria and defend that |
+| 6 | Create | Build something new out of the parts |
+
+This is the part that makes the deck worth more than a word list. A deck that is all *Remember* trains recall, and recall is not what a question like "which approach would you choose here, and why" tests. Leave all six chips on for a balanced deck, or switch five off to drill one weak level. The **Progress** tab scores each level separately and names the weakest one, because the fix differs: weak *Remember* means drill the vocabulary, while weak *Analyze* is usually a *Remember* or *Understand* gap wearing a disguise.
+
+**Study** — click the card to flip it, then grade yourself *Again / Good / Easy* (or press `Space`, then `1` `2` `3`). Grading drives a **Leitner** schedule: a correct answer moves the card up a box and pushes its next appearance further out, a wrong one sends it straight back to box 1 and requeues it in the same run. Intervals start at 5 minutes and 1 hour, so spacing does real work inside a single sitting rather than only across days.
+
+**Quiz** — four-option multiple choice over the same deck, with the wrong answers drawn from other cards at the same Bloom level. It is labelled honestly in the app as the weaker exercise: recognising an answer is far easier than recalling one, so a strong quiz score beside a weak Study score means the material is *familiar*, not *known*.
+
+Decks are stored in the same local SQLite database as your conversations, so they survive a reload and never leave the device.
+
+### Which model writes the cards
+
+By default Review borrows whatever model the app already has selected — your local Ollama, or the hosted model through `/api` on a published copy. Nothing to configure.
+
+If nothing is running locally, paste a **Groq** key into **Settings → Model → Groq API Key** and Review uses Groq instead. Keys are free at [console.groq.com](https://console.groq.com) with no card. The app asks Groq which models the key can actually reach and lets you pick one, rather than pinning a name that stops existing the day the provider retires it.
+
+The key is stored only in this browser and is **never** written into `my-ai.json`, so publishing cannot leak it. Chat is deliberately left on your local model either way — a key pasted here should not quietly move every conversation off-device. For a *deployed* copy, use the `MODEL_API_KEY` environment variable instead, where the key stays server-side and the browser never sees it at all.
+
+---
+
 ## Project structure
 
 ```
@@ -199,21 +238,22 @@ barangayAI/
 │   ├── chat.js         # send/stream, markdown rendering, message rendering, history
 │   ├── thinking.js     # deep-thinking toggle + display
 │   ├── publish.js      # export my-ai.json + visitor-mode lockdown
+│   ├── review.js       # Review tab — flashcards, Bloom's levels, Leitner spacing, quiz
 │   └── init.js         # welcome screen, chat actions, app bootstrap (window 'load')
 ├── db.js               # SQLite persistence layer (sql.js + IndexedDB)
 ├── rag.js              # local knowledge retrieval — chunking + BM25 scoring, no embedding model
 ├── vendor/             # sql.js, pdf.js, mammoth.js, fonts — committed, not CDN (see vendor/README.md)
 ├── assets/
 │   ├── logos/          # vendor + brand logos shown in the model picker and welcome screen
-│   └── DEVCON-17-Brand-Kit-Aug-6-2026.md   # seeded as the default Source on first run (app/training.js)
+│   └── Study-Buddy-Review-Guide.md   # seeded as the default Source on first run (app/training.js)
 └── README.md
 ```
 
 ### Changing the pre-loaded Source
 
-The app ships one Source already loaded so answers are grounded on first run. To swap in your own document, replace `assets/DEVCON-17-Brand-Kit-Aug-6-2026.md` and update the name in `SEED_SOURCE` near the top of the seed block in `app/training.js`. The markdown is read at runtime, so your edit shows up on the next reload — nothing to rebuild.
+The app ships one Source already loaded so answers are grounded on first run — and so the Review tab has something to build a first deck from. To swap in your own document, drop it in `assets/`, update `SEED_SOURCE` near the top of the seed block in `app/training.js`, and add it to `PRECACHE` in `sw.js`. The markdown is read at runtime, so your edit shows up on the next reload — nothing to rebuild.
 
-The seed only ever applies to a library that is empty or still holds the untouched default; it never injects itself into sources you added. It also needs the app served over `http://` (see Quick start) — `fetch()` is blocked at the `file://` origin.
+The seed only ever applies to a library that is empty or still holds the untouched default; it never injects itself into sources you added. When the default itself changes, the old name goes into `LEGACY_SEED_NAMES` so installs still carrying nothing but the previous default get upgraded in place rather than stranded on it. It also needs the app served over `http://` (see Quick start) — `fetch()` is blocked at the `file://` origin.
 
 No build step. No framework. No bundler. Just more files instead of one — open any of them, edit, refresh. Script tags load in dependency order (`config.js` first, `init.js` last); if you add a file, add its `<script>` tag in `index.html` in the right spot.
 
@@ -238,7 +278,12 @@ When you change an app file, bump `CACHE_VERSION` in `sw.js` so returning users 
 
 ## Privacy
 
-Everything stays on your device. Conversations are stored in your browser's IndexedDB, and prompts go only to your local model. The one network call that can leave your machine is **web search**, and only if you explicitly enable it and add a Tavily key.
+Everything stays on your device. Conversations, uploaded sources and review decks are stored in your browser's IndexedDB, and prompts go only to your local model.
+
+Two things can send data off your machine, and both are off until you supply a key:
+
+- **Web search** — the question is sent to Tavily. Needs a Tavily key and the toggle switched on.
+- **Review card generation with a Groq key** — if you paste one into Settings → Model, the topic and the retrieved chunks of your Sources are sent to Groq to write the cards. Leave it blank and Review uses your local model, and nothing leaves the device. Chat never uses this key.
 
 ---
 
