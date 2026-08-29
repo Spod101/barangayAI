@@ -13,7 +13,7 @@
 // on activate, so a stale app can never outlive a deploy.
 // ─────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const CACHE_NAME    = `barangay-ai-${CACHE_VERSION}`;
 
 // The shell: everything required to boot and hold a conversation offline.
@@ -47,6 +47,8 @@ const PRECACHE = [
   // Seeded knowledge source — fetched at runtime by app/training.js
   'assets/DEVCON-17-Brand-Kit-Aug-6-2026.md',
   'assets/logos/17_logo.png',
+  'assets/logos/17_logo_icon.png',
+  'assets/logos/17_logo_touch.png',
   'assets/logos/light_logo.png',
   'assets/logos/ollama_logo.png',
   'assets/logos/Qwen_logo.webp',
