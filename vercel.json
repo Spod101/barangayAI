@@ -3,5 +3,8 @@
   "rewrites": [
     { "source": "/api/models", "destination": "/api/proxy?p=models" },
     { "source": "/api/chat/completions", "destination": "/api/proxy?p=chat" }
+  ],
+  "redirects": [
+    { "source": "/showcase", "destination": "https://barangay-ai-showcase.vercel.app", "permanent": false }
   ]
 }

@@ -614,6 +614,14 @@ git push</code></div></div>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span><strong>Remember which one is the real one.</strong> The shared link runs on somebody else's computer, on a hosted model metered against your own key. The AI on <em>your</em> machine is the one that's free, offline, and private — nobody can meter it, price it, or switch it off. That's the one you actually built today.</span>
       </div>
+      <!-- Same link as the About section in onboarding — see the note there. -->
+      <a href="https://barangay-ai-showcase.vercel.app" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:11px 14px;text-decoration:none;margin:14px 0 0">
+        <div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-primary);margin-bottom:2px">The top 10 builds from past camps</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.5">What a finished one looks like — demos, source, and the prompts behind them.</div>
+        </div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:12px;color:var(--text-muted)"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
       <p class="gp-page-sub" style="text-align:center;margin:14px 0 0">Stuck? Raise your hand — no question is too basic.</p>
     </section>
 
@@ -684,7 +692,7 @@ git push</code></div></div>
         <div class="gp-map-row"><b style="color:var(--text-primary)">Hour 4</b><span>Publish it. Share the live URL. Open your first Pull Request.</span></div>
       </div>
 
-      <details style="margin-top:18px;margin-bottom:8px">
+      <details class="ob-fold" style="margin-top:18px;margin-bottom:8px">
         <summary style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:4px 0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
           Camp day guide — how today works
@@ -705,7 +713,7 @@ git push</code></div></div>
       </div>
       </details>
 
-      <details style="margin-bottom:8px">
+      <details class="ob-fold" style="margin-bottom:8px">
         <summary style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:4px 0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
           Tech stack
@@ -719,7 +727,7 @@ git push</code></div></div>
         </div>
       </details>
 
-      <details style="margin-bottom:4px">
+      <details class="ob-fold" style="margin-bottom:4px">
         <summary style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:4px 0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
           Glossary — tap to expand the words you'll hear today
@@ -872,7 +880,9 @@ git push</code></div></div>
     </div>
 
     <div style="padding:0 22px 20px">
-      <details style="border-top:1px solid var(--border-light);padding-top:10px;margin-top:4px">
+      <!-- open by default: the showcase link and the DEVCON context live in here,
+           and a collapsed section reads as optional. -->
+      <details class="ob-fold" open style="border-top:1px solid var(--border-light);padding-top:10px;margin-top:4px">
         <summary style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:6px 0 12px">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
           About DEVCON
@@ -910,6 +920,14 @@ git push</code></div></div>
           <a href="https://github.com/devcon-ph" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;background:var(--dc-blue-light);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11.5px;color:var(--text-primary);font-weight:600;text-decoration:none">github.com/devcon-ph</a>
           <a href="https://github.com/Spod101/barangayAI/fork" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;background:var(--dc-blue-light);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11.5px;color:var(--text-primary);font-weight:600;text-decoration:none">Fork this project</a>
         </div>
+        <!-- Lives on its own domain. /showcase on this app's domain redirects there (vercel.json) for anything printed on a slide, but the app also runs from file:// and localhost at camp, where a root-relative path is a 404 — so this names the real address. -->
+        <a href="https://barangay-ai-showcase.vercel.app" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:11px 14px;text-decoration:none;margin-bottom:10px">
+          <div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--text-primary);margin-bottom:2px">10 AIs built at past camps</div>
+            <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.5">Live demos, source, and the prompt behind each one.</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:12px;color:var(--text-muted)"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
         <a href="https://devcon.ph/codecamps" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-decoration:none">
           <span style="font-size:12px;font-weight:600;color:var(--text-primary)">19,000+ geeks · 300 student-built projects deployed to production every year</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:10px;color:var(--text-muted)"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
