@@ -3714,6 +3714,15 @@
   .onboard-action-btn > span { flex: 1; text-align: left; }
   .onboard-action-arrow { opacity: 0.7; }
 
+  /* Step 1 — disclosure folds. The marker is an inline chevron SVG rather
+     than the native triangle, so nothing rotates it on its own: an open
+     section would keep showing the "click to expand" arrow it opened with. */
+  .ob-fold > summary > svg:first-child { transition: transform 0.18s ease; }
+  .ob-fold[open] > summary > svg:first-child { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .ob-fold > summary > svg:first-child { transition: none; }
+  }
+
   /* Step 2 — installation requirements (collapsible) */
   .install-req { margin-bottom: 14px; }
   .install-req summary {
