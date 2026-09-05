@@ -119,19 +119,18 @@ Then open the served URL and **pick a model** when prompted. That's it.
 All defaults live in the **CONFIG block at the top of [`app/config.js`](app/config.js)** — edit it to customize your build:
 
 ```js
-const API_BASE     = 'http://127.0.0.1:11434/v1';  // your local model endpoint
-const API_KEY      = 'ollama';                       // any value works for Ollama
-const MODEL        = 'qwen2.5:3b';                   // default model id
-const AI_NAME      = 'DEVCON';                        // display name
-const AI_AVATAR    = 'DV';                            // avatar initials
-const BRAND_COLOR  = '#4F46E5';
-const ACCENT_COLOR = '#00A8E8';
-const AI_TONE      = null;   // set a string to override the default system prompt
-const SUGGESTIONS  = null;   // set an array of suggestion cards to override defaults
+const API_BASE    = 'http://127.0.0.1:11434/v1';  // your local model endpoint
+const API_KEY     = 'ollama';                      // any value works for Ollama
+const MODEL       = 'qwen2.5:3b';                  // default model id
+const AI_NAME     = 'DEVCON';                      // display name
+const AI_AVATAR   = 'DV';                          // avatar initials
+const BRAND_COLOR = '#4F46E5';
+const AI_TONE     = null;   // set a string to override the default system prompt
+const SUGGESTIONS = null;   // set an array of suggestion cards to override defaults
 const CONTEXT_WINDOW = 32768; // model context window, used for the "context used" stat
 ```
 
-Most settings (tone, language, max tokens, web search key, training files, custom system prompt) can also be changed at runtime in **Settings** inside the app — those are saved to your browser.
+Most settings (tone, language, temperature, max tokens, web search key, training files, custom system prompt) can also be changed at runtime in **Settings** inside the app — those are saved to your browser.
 
 ### Publishing your AI (optional)
 
@@ -186,7 +185,7 @@ barangayAI/
 ├── styles.css          # all CSS
 ├── sw.js               # service worker — precaches the app so it opens offline
 ├── my-ai.json          # (optional) your published AI — created by Settings → Publish
-├── vercel.json         # routes /api/* to the model proxy when deployed
+├── vercel.json         # routes /api/* to the model proxy when deployed, plus the /showcase redirect
 ├── api/
 │   └── proxy.js        # serverless proxy — holds the hosted model key server-side
 ├── app/                # app logic, split by feature — loaded in this order via <script> tags
@@ -197,6 +196,7 @@ barangayAI/
 │   ├── onboarding.js   # welcome modal + Camp Guidebook
 │   ├── models.js       # model selector, endpoint manager, connectivity checks
 │   ├── chat.js         # send/stream, markdown rendering, message rendering, history
+│   ├── actions.js      # copy / edit / ask-again + the version switcher on a turn
 │   ├── thinking.js     # deep-thinking toggle + display
 │   ├── publish.js      # export my-ai.json + visitor-mode lockdown
 │   └── init.js         # welcome screen, chat actions, app bootstrap (window 'load')

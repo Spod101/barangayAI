@@ -85,8 +85,9 @@ Screenshots or a short screen recording in the PR help a lot for visual changes.
 
 Match what's already there rather than importing your own conventions.
 
-- **Vanilla JS, no dependencies.** The three CDN libraries (sql.js, pdf.js, mammoth.js) are the ceiling — please don't add a fourth without discussing it in an issue first. Anything that requires npm, a bundler, or a build step is out of scope for this project.
+- **Vanilla JS, no dependencies.** The three vendored libraries (sql.js, pdf.js, mammoth.js, all in [`vendor/`](vendor/) — never a CDN) are the ceiling. Please don't add a fourth without discussing it in an issue first. Anything that requires npm, a bundler, or a build step is out of scope for this project.
 - **Script order matters.** `app/*.js` files load in dependency order via `<script>` tags in `index.html` — `config.js` first, `init.js` last. If you add a file, add its tag in the right spot.
+- **A new file needs three edits, not one.** The `<script>` tag above, the `PRECACHE` list in [`sw.js`](sw.js), and a `CACHE_VERSION` bump in the same file. A path in `PRECACHE` that 404s fails the whole service-worker install and silently leaves everyone without an offline shell. Bump `CACHE_VERSION` for *any* change to a shell file, or returning users keep the cached build.
 - **One concern per file.** `app/` is split by feature; put new code where it belongs rather than growing `init.js`.
 - **Comments explain *why*.** The existing comments are about intent and trade-offs, not restating the code. Follow that.
 - **Defaults live in the CONFIG block** at the top of [`app/config.js`](app/config.js). Don't scatter new constants through the app.
